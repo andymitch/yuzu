@@ -1,0 +1,14 @@
+{
+    "exchange": "BinanceUS",
+    "exchange_key": "<my_key>",
+    "exchange_secret": "<my_secret>",
+    "pair_base": "USD",
+    "pair_whitelist": ["ADA/USD, BTC/USD, ETH/USD"],
+    "interval": "5m",
+    "strategy": "MyStrategy",
+    "strategy_args": {
+        "min_roi": {"0": 0.3, "15": 0.2, "30": 0.1, "45": 0.0},
+        "stop-loss": -0.35,
+        "indicator_const": "usually (int) value"
+    }
+}
