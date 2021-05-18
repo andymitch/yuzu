@@ -1,3 +1,5 @@
+![yuzu-logo](assets/yuzu-logo.svg)
+
 # yuzu
 
  trade bot
