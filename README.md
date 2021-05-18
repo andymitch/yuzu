@@ -6,4 +6,4 @@
 
 ## TODO
 
- decide where to handle stop-loss and roi sells orders
+ decide where to handle stop-loss and roi sell orders
