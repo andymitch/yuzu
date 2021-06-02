@@ -10,7 +10,7 @@ import numpy as np
 from multiprocess import Process
 
 
-def get_data(pair="ADABTC", interval="1h", timeframe="2 months ago"):
+def get_data(pair, interval="1h", timeframe="3 months ago"):
     client = Client()
     klines = client.get_historical_klines(pair, interval, timeframe)
     cols = ["time", "open", "high", "low", "close", "volume", "close_time", "qav", "trade_count", "taker_bav", "taker_qav", "ignore"]
@@ -128,9 +128,9 @@ class macd:
                 if verbose:
                     print('sell @', row['sell'])
             if not np.isnan(row['close']):
-                data.loc[i, 'trade_profit'] = (wallet['base'] + (wallet['asset'] * row['close'])) / starting_amount
+                data.loc[i, 'trade_profit'] = (((wallet['base'] + (wallet['asset'] * row['close'])) / starting_amount) - 1) * 100
                 if not bought_in is None:
-                    data.loc[i, 'hodl_profit'] = (bought_in * row['close']) / starting_amount
+                    data.loc[i, 'hodl_profit'] = (((bought_in * row['close']) / starting_amount) - 1) * 100
 
     @staticmethod
     def plot(data, pair="BTCADA"):
@@ -186,28 +186,35 @@ class ao:
         data.loc[((data['ao'].shift() > 0) & (data['ao'] < 0)), "sell"] = data["close"]
 
     @staticmethod
-    def plot(data):
+    def plot(data, pair):
         fig = make_subplots(rows=4, cols=1, shared_xaxes=True, specs=[[{"secondary_y": False}], [{"secondary_y": False}], [{"secondary_y": False}], [{"secondary_y": True}]])
 
-        fig.add_trace(go.Candlestick(x=data.index, open=data.open, high=data.high, low=data.low, close=data.close, name='ADAUSD'), row=1, col=1)
+        fig.add_trace(go.Candlestick(x=data.index, open=data.open, high=data.high, low=data.low, close=data.close, name=pair), row=1, col=1)
         fig.add_trace(go.Scatter(y=data.buy, x=data.index, name='buy', mode='markers', marker=dict(color='blue', symbol='circle-open', size=10)), row=1, col=1)
         fig.add_trace(go.Scatter(y=data.sell, x=data.index, name='sell', mode='markers', marker=dict(color='yellow', symbol='circle-open', size=10)), row=1, col=1)
 
         fig.add_trace(go.Scatter(y=data.rsi, x=data.index, mode='lines', line_shape='spline', name='rsi', line=dict(color='purple')), row=2, col=1)
 
         marker_colors = np.full(data['ao'].shape, np.nan, dtype=object)
-        marker_colors[data['ao'] > 0] = 'green'
-        marker_colors[data['ao'] < 0] = 'red'
+        marker_colors[data['ao'] >= data['ao'].shift()] = 'green'#marker_colors[data['ao'] > 0] = 'green'
+        marker_colors[data['ao'] < data['ao'].shift()] = 'red'#marker_colors[data['ao'] < 0] = 'red'
         fig.add_trace(go.Bar(y=data.ao, x=data.index, name="awesome oscillator", marker_color=marker_colors), row=3, col=1)
 
+        '''
         data.loc[(data['trade_profit'] - data['hodl_profit'] > 0), "profit"] = data['trade_profit'] - data['hodl_profit']
         data.loc[(data['trade_profit'] - data['hodl_profit'] < 0), "loss"] = data['trade_profit'] - data['hodl_profit']
         fig.add_trace(go.Scatter(y=data.profit.fillna(0), x=data.index, name="profit", marker_color='green',
                       mode='none', line_shape='spline', fill='tozeroy'), row=4, col=1, secondary_y=True)
         fig.add_trace(go.Scatter(y=data.loss.fillna(0), x=data.index, name="loss", marker_color='red',
                       mode='none', line_shape='spline', fill='tozeroy'), row=4, col=1, secondary_y=True)
-        fig.add_trace(go.Scatter(y=data.hodl_profit, x=data.index, mode='lines', line_shape='spline', name='hodl_profit', line=dict(color='yellow')), row=4, col=1)
-        fig.add_trace(go.Scatter(y=data.trade_profit, x=data.index, mode='lines', line_shape='spline', name='trade_profit', line=dict(color='green')), row=4, col=1)
+        '''
+        data["profit"] = data['trade_profit'] - data['hodl_profit']
+        marker_colors[data['profit'] >= data['profit'].shift()] = 'green'
+        marker_colors[data['profit'] < data['profit'].shift()] = 'red'
+        fig.add_trace(go.Bar(y=data.profit, x=data.index, name="profit", marker_color=marker_colors), row=4, col=1)
+
+        fig.add_trace(go.Scatter(y=data.hodl_profit, x=data.index, mode='lines', line_shape='spline', name='hodl_profit', line=dict(color='yellow')), row=4, col=1, secondary_y=True)
+        fig.add_trace(go.Scatter(y=data.trade_profit, x=data.index, mode='lines', line_shape='spline', name='trade_profit', line=dict(color='green')), row=4, col=1, secondary_y=True)
 
         fig.update_yaxes(spikemode='across', spikedash='dot', spikecolor='grey', spikethickness=1)
         fig.update_xaxes(rangeslider_visible=False, spikemode='across', spikesnap='cursor', spikedash='dot', spikecolor='grey', spikethickness=1)
@@ -216,16 +223,17 @@ class ao:
         fig.show()
 
     @ staticmethod
-    def run(timeframe='15 days ago', interval='5m', stop_loss=.1, verbose=False, pair="ADABTC", tol=.00000002):
-        data = get_data(timeframe=timeframe, interval=interval)
+    def run(pair, timeframe='15 days ago', interval='5m', stop_loss=.1, verbose=False, tol=.00000002):
+        data = get_data(timeframe=timeframe, interval=interval, pair=pair)
         ao.populate_indicators(data)
         macd.populate_profit(data, verbose=verbose)
-        ao.plot(data)
+        ao.plot(data, pair=pair)
 
 
 # macd.run(stop_loss=.1, verbose=True, pair="ADAUSD", tol=.00000005)
 if __name__ == '__main__':
     #fivemin = Process(target=ao.run)
     # fivemin.start()
-    ao.run(timeframe='6 months ago', interval='1h')
+    ao.run(timeframe='3 years ago', interval='1d', pair='ADABTC')
+    ao.run(timeframe='6 months ago', interval='1h', pair='ADABTC')
     # fivemin.join()
