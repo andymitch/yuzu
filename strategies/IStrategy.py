@@ -13,15 +13,22 @@ def colorprint(i, col, val, include_time=True):
     elif col == 'stop_loss':
         print(f'\033[91m{datetime.datetime.strptime(i, "%Y-%m-%dT%H:%M:%S").strftime(time_str)} {col} @ {val}\033[00m')
 
-def populate_backdata(pair, interval, timeframe):
-    client = Client()
-    klines = client.get_historical_klines(pair, interval, timeframe)
-    cols = ["time", "open", "high", "low", "close", "volume", "close_time", "qav", "trade_count", "taker_bav", "taker_qav", "ignore"]
-    data = pd.DataFrame(klines, columns=cols).drop(["close_time", "qav", "trade_count", "taker_bav", "taker_qav", "ignore"], axis=1)
-    data[["open", "high", "low", "close", "volume"]] = data[["open", "high", "low", "close", "volume"]].apply(pd.to_numeric, axis=1)
-    data["time"] = data["time"].apply(lambda t: datetime.datetime.fromtimestamp(float(t / 1000)).isoformat())
-    return data.set_index("time").sort_index()
-
+def populate_backdata(pair, interval, timeframe, recent=False):
+    file_path = f'./backdata/{pair}-{interval.upper()}.csv'
+    if recent:
+        client = Client()
+        klines = client.get_historical_klines(pair, interval, timeframe)
+        cols = ["time", "open", "high", "low", "close", "volume", "close_time", "qav", "trade_count", "taker_bav", "taker_qav", "ignore"]
+        data = pd.DataFrame(klines, columns=cols).drop(["close_time", "qav", "trade_count", "taker_bav", "taker_qav", "ignore"], axis=1)
+        data[["open", "high", "low", "close", "volume"]] = data[["open", "high", "low", "close", "volume"]].apply(pd.to_numeric, axis=1)
+        data["time"] = data["time"].apply(lambda t: datetime.datetime.fromtimestamp(float(t / 1000)).isoformat())
+        data = data.set_index("time").sort_index()
+        data.to_csv(file_path)
+        return data
+    else:
+        data = pd.read_csv(file_path)
+        data = data.set_index("time").sort_index()
+        return data
 
 def get_timeframe(interval):
     interval_map = {'m': 'minutes', 'h': 'hours', 'd': 'days'}
@@ -92,3 +99,7 @@ class IStrategy:
                     self.data.loc[i, 'hodl_profit'] = (((bought_in * row['close']) / starting_amount) - 1) * 100
 
         return self.data, self.plot()
+
+
+print(populate_backdata('ADABTC', '1d', '1000 days ago', recent=True))
+print(populate_backdata('ADABTC', '1d', '1000 days ago'))

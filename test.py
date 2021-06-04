@@ -16,5 +16,4 @@ def main():
         return {'success': False, 'message': f'strategy class: {class_name} not found.'}
 
 
-df = DataFrame()
-print(type(df) is DataFrame)
+print('1d'.upper())
