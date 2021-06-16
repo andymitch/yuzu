@@ -1,0 +1,3 @@
+[console_scripts]
+yuzu = yuzu.yuzu:main
+

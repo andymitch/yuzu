@@ -13,7 +13,10 @@ def main():
         InnerClass = getattr(mod, 'InnerClass')
         innerObj = InnerClass()
     except:
-        return {'success': False, 'message': f'strategy class: {class_name} not found.'}
+        return {'success': False, 'message': f'class {class_name} not found.'}
 
-
-print('1d'.upper())
+#main()
+a = 4
+b = 5
+c = a or b
+print(c)

@@ -8,9 +8,9 @@
 - [ ] interface classes
     - [ ] IStrategy
     - [ ] IExchange
-- [ ] add pre-built strategies
+- [ ] pre-built strategies
     - [ ] at least 3 unique strategies
-- [ ] add pre-built exchanges
+- [ ] pre-built exchanges
     - [ ] binance us
     - [ ] kraken
     - [ ] coinbase pro
@@ -25,10 +25,3 @@
         - [ ] run server
         - [ ] develop ui
         - [ ] embed live graph
-
-#### UI
-- [ ] yuo
-- [x] cli
-    - setup
-    - 
-* webpage
