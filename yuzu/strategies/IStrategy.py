@@ -14,11 +14,11 @@ def colorprint(i, col, val, include_time=True):
     elif col == 'stop_loss':
         print(f'\033[91m{datetime.datetime.strptime(i, "%Y-%m-%dT%H:%M:%S").strftime(time_str)} {col} @ {val}\033[00m')
 
-def populate_backdata(pair, interval, timeframe, recent=False):
+def populate_backdata(pair, interval, start, finish, update=False):
     file_path = f'./yuzu/backdata/{pair}-{interval.upper()}.csv'
-    if recent or not os.path.exists(file_path):
+    if update or not os.path.exists(file_path):
         client = Client()
-        klines = client.get_historical_klines(pair, interval, timeframe)
+        klines = client.get_historical_klines(pair, interval, start, finish)
         cols = ["time", "open", "high", "low", "close", "volume", "close_time", "qav", "trade_count", "taker_bav", "taker_qav", "ignore"]
         data = pd.DataFrame(klines, columns=cols).drop(["close_time", "qav", "trade_count", "taker_bav", "taker_qav", "ignore"], axis=1)
         data[["open", "high", "low", "close", "volume"]] = data[["open", "high", "low", "close", "volume"]].apply(pd.to_numeric, axis=1)
@@ -31,17 +31,18 @@ def populate_backdata(pair, interval, timeframe, recent=False):
         data = data.set_index("time").sort_index()
         return data
 
-def get_timeframe(interval, max_ticks=None):
+def get_timeframe(interval, max_ticks):
     interval_map = {'m': 'minutes', 'h': 'hours', 'd': 'days'}
-    num = int(interval[:-1]) * (max_ticks or 1000)
+    num = int(interval[:-1]) * max_ticks
     return f'{num} {interval_map[interval[-1]]} ago'
 
 class IStrategy:
-    def __init__(self, pair, interval, config=None, recent=False, max_ticks=None):
-        self.timeframe = get_timeframe(interval, max_ticks)
+    def __init__(self, pair, interval, config=None, update=False, max_ticks=1000, timeframes_back=0):
+        start = get_timeframe(interval, max_ticks + (max_ticks * timeframes_back))
+        finish = get_timeframe(interval, max_ticks * timeframes_back)
         self.interval = interval
         self.pair = pair
-        self.data = populate_backdata(pair, interval, self.timeframe, recent=recent)
+        self.data = populate_backdata(pair, interval, start=start, finish=finish, update=update)
         self.populate_indicators()
         self.populate_buys(config)
         self.populate_sells(config)
@@ -68,9 +69,13 @@ class IStrategy:
             'base': starting_amount,
             'asset': 0.0
         }
+        self.data['bought'] = [None] * len(self.data)
+        self.data['sold'] = [None] * len(self.data)
+        self.data['stoped_loss'] = [None] * len(self.data)
         stop_loss_value = None
         for i, row in self.data.iterrows():
             if not np.isnan(row['buy']) and wallet['base'] > 0:
+                self.data.loc[i, 'bought'] = self.data.loc[i, 'close']
                 fee = wallet['base'] * trading_fee
                 wallet['asset'] = (wallet['base'] - fee) / row['buy']
                 wallet['base'] = 0.0
@@ -80,6 +85,7 @@ class IStrategy:
                 if verbose:
                     colorprint(i, 'buy', row['buy'], self.interval[-1] != 'd')
             elif not stop_loss_value is None and stop_loss_value > row['low']:
+                self.data.loc[i, 'stoped_loss'] = self.data.loc[i, 'close']
                 fee = wallet['asset'] * trading_fee
                 wallet['base'] = (wallet['asset'] - fee) * stop_loss_value
                 wallet['asset'] = 0.0
@@ -88,6 +94,7 @@ class IStrategy:
                     colorprint(i, 'stop_loss', stop_loss_value, self.interval[-1] != 'd')
                 stop_loss_value = None
             elif not np.isnan(row['sell']) and wallet['asset'] > 0:
+                self.data.loc[i, 'sold'] = self.data.loc[i, 'close']
                 fee = wallet['asset'] * trading_fee
                 wallet['base'] = (wallet['asset'] - fee) * row['sell']
                 wallet['asset'] = 0.0
