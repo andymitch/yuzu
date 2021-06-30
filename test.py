@@ -1,5 +1,6 @@
 
 
+from exchanges.CoinbasePro import CoinbasePro
 from pandas import DataFrame
 
 
@@ -14,9 +15,3 @@ def main():
         innerObj = InnerClass()
     except:
         return {'success': False, 'message': f'class {class_name} not found.'}
-
-#main()
-a = 4
-b = 5
-c = a or b
-print(c)
