@@ -10,8 +10,8 @@ class CoinbasePro(IExchange):  # COINBASE PRO EXCHANGE
         # TODO: setup a client with coinbase like binance does
 
     @staticmethod
-    def get_backdata(pair, interval, start, finish='now', update=False):
-        file_path = f'./yuzu/backdata/coinbasepro/{pair}-{interval.upper()}.csv'
+    def get_backdata(pair, interval, start, finish="now", update=False):
+        file_path = f"./yuzu/backdata/coinbasepro/{pair}-{interval.upper()}.csv"
         if update or not os.path.exists(file_path):
             pass  # TODO: implement Coinbase Pro API data pull
         else:
@@ -20,4 +20,5 @@ class CoinbasePro(IExchange):  # COINBASE PRO EXCHANGE
             return data
 
 
-CoinbasePro('su', 'dude')
+if __name__ == "__main__":
+    CoinbasePro("su", "dude")

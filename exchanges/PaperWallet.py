@@ -16,7 +16,7 @@ class PaperWallet:
                 self.balance[pair_right] -= price * (amount + (amount * fee))
                 self.fund(pair_left, amount)
 
-    def sell(self, pair_left: str, pair_right: str, price: float, amount: Union[float, str], fee: float = .001):
+    def sell(self, pair_left: str, pair_right: str, price: float, amount: float, fee: float = .001):
         if pair_left in self.balance.keys() and self.balance[pair_left] >= amount:
             if self.balance[pair_left] < amount + (amount * fee):
                 self.balance[pair_left] -= amount
