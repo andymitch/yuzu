@@ -1,27 +1,25 @@
-![yuzu-logo](assets/yuzu-logo.svg)
-
 # yuzu
 
  trade bot
 
-## TODO
-- [ ] interface classes
-    - [ ] IStrategy
-    - [ ] IExchange
-- [ ] pre-built strategies
-    - [ ] at least 3 unique strategies
-- [ ] pre-built exchanges
-    - [ ] binance us
-    - [ ] kraken
-    - [ ] coinbase pro
-- [ ] make backtesting configurable
-- [ ] Optimizer
-- [ ] UI
-    - [ ] cli
-        - [ ] setup
-        - [ ] storyline
-        - [ ] design interface
-    - [ ] webpage
-        - [ ] run server
-        - [ ] develop ui
-        - [ ] embed live graph
+## Features
+- [X] **custom strategies** *(add your own strategy functions)*
+- [X] **custom graph plot** *(add additional columns to graph)*
+- [ ] **optimize strategies** *(optimize strategy parameters using a genetic algorithm)*
+- [ ] **package project** *(install using PyPI to code with YUZU)*
+- [ ] **cli** *(command-line interface to use YUZU)*
+- [ ] **ui** *(React-based user interface to use YUZU)*
+### Exchange Support
+- [X] **PaperWallet** *(used by any exchange to paper trade)*
+- [ ] **BinanceUS**
+    - [X] **historical data** *(pull data to backtest)*
+    - [ ] **live data** *(create websocket to start live trading)*
+    - [ ] **user info** *(pull user account information)*
+- [ ] **CoinbasePro**
+    - [ ] **historical data** *(pull data to backtest)*
+    - [ ] **live data** *(create websocket to start live trading)*
+    - [ ] **user info** *(pull user account information)*
+- [ ] **Kraken**
+    - [ ] **historical data** *(pull data to backtest)*
+    - [ ] **live data** *(create websocket to start live trading)*
+    - [ ] **user info** *(pull user account information)*
