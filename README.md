@@ -3,23 +3,26 @@
 Yuzu is an open source crypto trading bot written in Python. It features exchange specific backtesting, custom strategy integration, adaptive strategy optimization, adaptive graph plotting, paper trading, and soon will feature live trading.
 
 ## Features
-- [X] **custom strategies** *(add your own strategy functions)*
-- [X] **adaptive graph plot** *(add additional columns to graph)*
-- [ ] **optimize strategies** *(optimize strategy parameters using a genetic algorithm)*
-- [ ] **package project** *(install using PyPI to code with YUZU)*
-- [ ] **cli** *(command-line interface to use YUZU)*
-- [ ] **ui** *(React-based user interface to use YUZU)*
+
+- [x] **custom strategies** _(add your own strategy functions)_
+- [x] **adaptive graph plot** _(add additional columns to graph)_
+- [ ] **optimize strategies** _(optimize strategy parameters using a genetic algorithm)_
+- [ ] **package project** _(install using PyPI to code with YUZU)_
+- [ ] **cli** _(command-line interface to use YUZU)_
+- [ ] **ui** _(React-based user interface to use YUZU)_
+
 ### Exchange Support
-- [X] **PaperWallet** *(used by any exchange to paper trade)*
+
+- [x] **PaperWallet** _(used by any exchange to paper trade)_
 - [ ] **BinanceUS**
-    - [X] **historical data** *(pull data to backtest)*
-    - [ ] **live trading** *(create websocket to start live trading)*
-    - [ ] **user info** *(pull user account information)*
+  - [x] **historical data** _(pull data to backtest)_
+  - [ ] **live trading** _(create websocket to start live trading)_
+  - [ ] **user info** _(pull user account information)_
 - [ ] **CoinbasePro**
-    - [ ] **historical data** *(pull data to backtest)*
-    - [ ] **live trading** *(create websocket to start live trading)*
-    - [ ] **user info** *(pull user account information)*
+  - [ ] **historical data** _(pull data to backtest)_
+  - [ ] **live trading** _(create websocket to start live trading)_
+  - [ ] **user info** _(pull user account information)_
 - [ ] **Kraken**
-    - [ ] **historical data** *(pull data to backtest)*
-    - [ ] **live trading** *(create websocket to start live trading)*
-    - [ ] **user info** *(pull user account information)*
+  - [ ] **historical data** _(pull data to backtest)_
+  - [ ] **live trading** _(create websocket to start live trading)_
+  - [ ] **user info** _(pull user account information)_

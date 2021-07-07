@@ -3,19 +3,22 @@ from datetime import datetime
 from numpy import isnan
 
 
-def colorprint(i, col, val, include_time=True):
+def colorprint(i, col, val, include_time=True, win=False):
     time_str = "%b %d, %Y [%H:%M]" if include_time else "%b %d, %Y"
     if col == "buy":
         print(f'\033[96m{datetime.strptime(i, "%Y-%m-%dT%H:%M:%S").strftime(time_str)} {col}       @ {val}\033[00m')
     elif col == "sell":
-        print(f'\033[93m{datetime.strptime(i, "%Y-%m-%dT%H:%M:%S").strftime(time_str)} {col}      @ {val}\033[00m')
+        if win:
+            print(f'\033[92m{datetime.strptime(i, "%Y-%m-%dT%H:%M:%S").strftime(time_str)} {col}      @ {val}\033[00m')
+        else:
+            print(f'\033[41m{datetime.strptime(i, "%Y-%m-%dT%H:%M:%S").strftime(time_str)} {col}      @ {val}\033[00m')
     elif col == "stop_loss":
         print(f'\033[91m{datetime.strptime(i, "%Y-%m-%dT%H:%M:%S").strftime(time_str)} {col} @ {val}\033[00m')
 
 
-def backtest(config: object, trading_fee=0.001, verbose=False, respond=True):
-    data = get_backdata(config["pair"], config["interval"], get_timeframe(config["interval"], 3000), update=True)
-    data = get_strategy(config["strategy"])(data)
+def backtest(config: object, trading_fee=0.001, verbose=False, update=True):
+    data = get_backdata(config["pair"], config["interval"], get_timeframe(config["interval"], 3000), update=update)
+    data = get_strategy(config["strategy"])(data, config["strategy_config"])
     starting_amount = 100.0
     data["trade_profit"] = [0] * len(data)
     data["hodl_profit"] = [0] * len(data)
@@ -40,9 +43,9 @@ def backtest(config: object, trading_fee=0.001, verbose=False, respond=True):
             if verbose:
                 colorprint(i, "buy", row["buy"], config["interval"][-1] != "d")
         elif not stop_loss_value is None and stop_loss_value > row["low"]:
-            tally[-1]["sell"] = data.loc[i, "close"]
-            tally[-1]["win"] = bool(tally[-1]["sell"] > tally[-1]["buy"])
-            data.loc[i, "stop_lossed"] = data.loc[i, "close"]
+            tally[-1]["sell"] = stop_loss_value
+            tally[-1]["win"] = bool(False)
+            data.loc[i, "stop_lossed"] = stop_loss_value
             fee = wallet["asset"] * trading_fee
             wallet["base"] = (wallet["asset"] - fee) * stop_loss_value
             wallet["asset"] = 0.0
@@ -59,7 +62,7 @@ def backtest(config: object, trading_fee=0.001, verbose=False, respond=True):
             wallet["asset"] = 0.0
             stop_loss_value = None
             if verbose:
-                colorprint(i, "sell", row["sell"], config["interval"][-1] != "d")
+                colorprint(i, "sell", row["sell"], config["interval"][-1] != "d", tally[-1]["win"])
         if not isnan(row["close"]):
             data.loc[i, "trade_profit"] = (((wallet["base"] + (wallet["asset"] * row["close"])) / starting_amount) - 1) * 100
             if not bought_in is None:
@@ -69,5 +72,4 @@ def backtest(config: object, trading_fee=0.001, verbose=False, respond=True):
     score = data.profit_diff.sum()
     if verbose:
         print("score:", score)
-    if respond:
-        return data
+    return data

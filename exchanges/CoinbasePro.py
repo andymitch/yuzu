@@ -11,7 +11,7 @@ class CoinbasePro(IExchange):  # COINBASE PRO EXCHANGE
 
     @staticmethod
     def get_backdata(pair, interval, start, finish="now", update=False):
-        file_path = f"./yuzu/backdata/coinbasepro/{pair}-{interval.upper()}.csv"
+        file_path = f"./backdata/coinbasepro/{pair}-{interval.upper()}.csv"
         if update or not os.path.exists(file_path):
             pass  # TODO: implement Coinbase Pro API data pull
         else:
@@ -19,6 +19,6 @@ class CoinbasePro(IExchange):  # COINBASE PRO EXCHANGE
             data = data.set_index("time").sort_index()
             return data
 
+    # TODO: live trading
 
-if __name__ == "__main__":
-    CoinbasePro("su", "dude")
+    # TODO: get user account info
