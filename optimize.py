@@ -1,685 +1,262 @@
-# EX
-"""
-def optimize(pair, interval, configs, update_data=False):
-    best = None
-    pairs = pair if isinstance(pair, list) else [pair]
-    intervals = interval if isinstance(interval, list) else [interval]
+from random import uniform, choice, shuffle
+from pandas import DataFrame
+from utils import get_strategy, get_backdata, get_timeframe, get_strategy_plot
+import math
+from tqdm import tqdm
+from numpy.random import rand
+from p_tqdm import p_map
 
-    pairs_and_intervals = [{'pair': p, 'interval': i} for p in pairs for i in intervals]
-    if update_data:
-        p_map(lambda x: populate_backdata(x['pair'], x['interval'], get_timeframe(x['interval'], 3000), update=True), pairs_and_intervals)
-
-    def run(config, _strategy):
-        strategy = copy(_strategy)
-        strategy.populate_indicators(config)
-        strategy.populate_buys(config)
-        strategy.populate_sells(config)
-        strategy.backtest(verbose=False, stop_loss=.3, trading_fee=.005, respond=False)
-        score = EMAIndicator((strategy.data.trade_profit - strategy.data.hodl_profit) - (strategy.data.trade_profit.shift() - strategy.data.hodl_profit.shift()), 8).ema_indicator().sum()
-        return {'pair': strategy.pair, 'interval': strategy.interval, 'config': config, 'score': score, 'tally': strategy.tally}
-
-    results = []
-    tic = time.perf_counter()
-    for pi in tqdm(pairs_and_intervals, colour='yellow'):
-        strat = AwesomeOscillatorStrategy(pair=pi['pair'], interval=pi['interval'], max_ticks=3000, update=False, config={
-                                          'rsi_lookback': configs[0]['rsi_lookback'], 'rsi_range': configs[0]['rsi_range']})
-        results += list(p_map(partial(run, _strategy=strat), configs))
-    toc = time.perf_counter()
-    print(f"Optimizer completed in {toc - tic:0.4f} seconds")
-    results.sort(key=lambda result: result['score'])
-    for r in results:
-        r.pop('tally')
-        print(json.dumps(r, indent=2))
-    best = results[-1]
-    _, plot = AwesomeOscillatorStrategy(pair=best['pair'], interval=best['interval'], max_ticks=3000, update=False, config=best['config']).backtest(verbose=False, stop_loss=.3, trading_fee=.005)
-    plot.show()
-
-
-if __name__ == "__main__":
-    #optimize(['ADABTC', 'ETHBTC', 'ADAUSDT', 'ETHUSDT', 'BTCUSDT'], ['1m', '15m', '1h', '1d'], configs=[{'rsi_lookback': lb, 'rsi_range': r} for lb in [8, 14, 20, 26, 32, 38] for r in [60, 62, 65, 68, 70, 72]], update_data=False)
-    _, adabtc = AwesomeOscillatorStrategy(pair='ADABTC', interval='1d', max_ticks=1000, update=True, config={'rsi_lookback': 8, 'rsi_range': 70}).backtest(verbose=True, stop_loss=.3, trading_fee=.005)
-    _, ethbtc = AwesomeOscillatorStrategy(pair='ETHBTC', interval='1d', max_ticks=1000, update=True, config={
-                                          'rsi_lookback': 38, 'rsi_range': 72}).backtest(verbose=True, stop_loss=.3, trading_fee=.005)
-    adabtc.show()
-    ethbtc.show()
-"""
-
-default_config = {
-    "strategy": "awesome_strat",
-    "strategy_config": {"rsi_lookback": 8, "rsi_range": 70, "ao_fast_lookback": 5, "ao_slow_lookback": 34},
-    "strategy_config_bounds": {"rsi_lookback": [5, 200], "rsi_range": [0, 100], "ao_fast_lookback": [5, 200], "ao_slow_lookback": [5, 200]},
-    "stop_loss_percent": [0, 1],
-}
-
-# TODO: develop brute_optimize()
-def brute_optimize(pair: str, interval: str, default_config: object) -> object:
-    # take only bounds and check a span of 5-10 possibilities in range, use p_map
-    pass
-
-
-# TODO: develop optimize()
-def optimize(pair: str, default_config: object) -> object:
-    # reference, reverse-engineer, and retrofit https://github.com/mick-liu/tagenalgo
-    pass
-
-
-class Optimizer:
-    def __init__(self):
-        '''
-        == parameters ==
-        data: DataFrame - ohlcv
-        gen_count: int - number of generations to evolve to
-        pop_size: int - size of population
-        cross_prob: float - probability of calling crossover
-        mutat_prob: float - probability of calling mutation
-        strategy: function - 
-        '''
-        pass
-
-    def calculate_fitness(self):
-        pass
-
-    def evaluate_fitness(self):
-        pass
-
-    def crossover(self):
-        pass
-
-    def fit(self):
-        pass
-
-    def evolve(self):
-        pass
-
-    def predict(self):
-        pass
-
-
-'''
-class TAGenAlgo(object):
-
-    """A parameter optimization algorithm for trading strategy.
+def optimize(data, backtest, strategy_name, param_ranges, pop_count=100, gen_count=100, select_count=10, max_diff=.1, r_cross=.8, r_mut=.8, verbose=True):
     
-    This is a genetic algorithm incorporated with technical analysis indicator 
-    to optimize parameters of a strategy. The innovation of the algorithm is 
-    that you can customize your strategy and use the algorithm to optimize the 
-    parameters included in the strategy. In general, this algorithm provides 
-    the following three main functions.
+    def populate():
+        return [{k: int(uniform(v[0], v[1])) for k,v in param_ranges.items()} for _ in range(pop_count)]
+
+    def fitness(config):
+        return backtest(data, strategy_name, config)
     
-    1. Optimize parameters of common technical analysis indicators such as 
-        "Relative Strength Indicator" or "Simple Moving Average".    
-    2. Optimize parameters of combined technical analysis indicators. E.g. 
-        "Relative Strength Indicator" + "Simple Moving Average".
-    3. Optimize parameters of customized strategy. E.g. 
-        "Relative Strength Indicator" + "self-defined stop loss mechanism".
-    
-    Parameters
-    ----------
-    price : np.array
-        Train vectors X.
-    generations : int
-        The number of generation for evolution.
-        
-    population_size : int
-        The number of individual in a population.
-    crossover_prob : float
-        The probability of executing crossover function.
-    mutation_prob : float
-        The probability of executing mutation function.
-        
-    method : string (default='single')
-        An identification of a strategy type. E.g. if a strategy only include
-        one indicator, then we define it as "single". On the other hand, if 
-        a strategy contains more than one indicator, then we define it as
-        "multiple".
-    strategy : string
-        The name of a technical analysis indicator or a customized strategy.
-    
-    References
-    ----------
-    .. [1] Fayek, M. B. et al. "Multi-objective Optimization of Technical 
-            Stock Market Indicators using GAs", 2013.
-    .. [2] Simões, et al. "An Innovative GA Optimized Investment Strategy 
-            based on a New Technical Indicator using Multiple MAS", 2010
-    .. [3] J. Koza, "Genetic Programming", 1992.
-    .. [4] R. Poli, et al. "A Field Guide to Genetic Programming", 2008.
-    """
+    def select(pop):
+        return sorted([(fitness(config), config) for config in tqdm(pop, desc='calculating fitness', leave=False)], key=lambda p: p[0], reverse=True)[:select_count]
 
-    def __init__(self,
-                 price=None,
-                 generations=None,
-                 population_size=None,
-                 crossover_prob=None,
-                 mutation_prob=None,
-                 method='single',
-                 strategy=None):
-        self.init = None
-        self.price = price
-        self.asset_ret = np.array(DataFrame(self.price, columns=['return'])['return'].pct_change())
-        self.generations = generations
-        self.pop_size = population_size
-        self.crossover_prob = crossover_prob
-        self.mutation_prob = mutation_prob
-        self.method = method
-        self.strategy = strategy
-        self.idc = None
-        self.idx = np.array(range(len(price)))
-        self.best_params = None
-
-    def ta_initialize(self, indicator_set):
-        """Initialize the model and generate training population.
-        Parameters
-        ----------
-        indicator_set : dict
-            Information about the evolution.
-        For example
-        -----------
-        >>> In: _ta_initialization(indicator_set={'rsi':{'window:[1,20], 'low':[3, 50], 'high':[51,99]}}
-        >>> Out: {'indicators': ['rsi'],
-                  'paramaters': ['rsi_window', 'rsi_low', 'rsi_high'],
-                  'initial population': [[3, 3, 71], [2, 10, 63], [13, 29, 61]]}
-        Warning
-        -------
-        The order of the 'indicator_set' needs to obey the following rules.
-        1. 'window -> 'low threshold' -> 'high threshold' (E.g. RSI indicator)
-        2. 'short term window' -> 'long term window' (E.g. SMA indicator)
-        3. 'window' -> 'low threshold' -> 'high threshold' -> 'short term window' -> 'long term window'
-            (E.g. Customized indicator)
-        """
-        init = dict()
-        pop = []
-        for k in range(self.pop_size):
-            pop_val = []
-            for i in indicator_set:
-                for j in indicator_set[i]:
-                    param_rng = random.randint(indicator_set[i][j][0], indicator_set[i][j][1])
-                    pop_val.append(param_rng)
-            pop.append(pop_val)
-
-        init['indicators'] = list(indicator_set.keys())
-        if self.method == 'single':
-            init['parameters'] = [i + '_' + j for i in indicator_set for j in indicator_set[i]]
-            init['initial_population'] = pop
-            self.idc = init['indicators']
-        elif self.method == 'multiple':
-            init['parameters'] = [i + '_' + j for i in indicator_set for j in indicator_set[i]] + ['exit_sig']
-            pop = [(i + [random.randint(0, len(init['indicators']))]) for i in pop]
-            init['initial_population'] = pop
-            self.idc = init['indicators']
-        self.init = init
-        return init, pop
-
-    def _verbose_reporter(self, run_details=None):
-        """A report of the progress of the evolution process.
-        Parameters
-        ----------
-        run_details : dict
-            Information about the evolution.
-        """
-        dash_len = len(self.init['parameters'][0])
-        for i in range(len(self.init['parameters'])):
-            dash_len = dash_len + len(self.init['parameters'][i])
-
-        if run_details is None:
-            print('    |{:^29}|'.format('Individual Performance') +
-                  ('{:^' + '{}'.format(dash_len) + '}|').format('Parameters'))
-            print('-' * 4 + ' ' + '-' * 29 + ' ' + '-' * dash_len + ' ' + '-' * 4)
-
-            line_format = '{:>4} {:>18} {:>10}'
-            fix_str = line_format.format('Gen', 'Expected Return', 'Win%')
-            for j in range(len(self.init['parameters'])):
-                fix_str += ' {:>' + '{}'.format(len(self.init['parameters'][j])) + '} '
-                fix_str = fix_str.format(self.init['parameters'][j])
-            print(fix_str)
-        else:
-            line_format2 = '{:>4d} {:>18.4f} {:>10.2f}'
-            fix_str2 = line_format2.format(run_details['generation'],
-                                           run_details['expected_return'],
-                                           run_details['win_rate'])
-            for j in range(len(self.init['parameters'])):
-                fix_str2 += ' {:>' + '{}'.format(len(self.init['parameters'][j])) + '} '
-                fix_str2 = fix_str2.format(run_details['parameters'][j])
-            print(fix_str2)
-
-    def _fitness_cal(self, params, sig_tol=0.03):
-        fitness_val_cumret = None
-        fitness_val_winrate = None
-        if self.method == 'single':
-            if self.strategy == 'rsi_stoploss_takeprofit':
-                window = params[0]
-                buy_sig = params[1]
-                sell_sig = params[2]
-                sl = params[3] * 0.001 * (-1)
-                tp = params[4] * 0.001
-
-                rsi = talib.RSI(self.price, timeperiod=window)
-                idc = rsi_stoploss_takeprofit(self.price, rsi=rsi, buy_sig=buy_sig,
-                                              sell_sig=sell_sig, stop_loss=sl,
-                                              take_profit=tp, error_tol=sig_tol)
-                enter_pos, exit_pos = trade_timing(idc)
-                strat_ret = strategy_ret(idc, self.asset_ret)
-                fitness_val_cumret = strategy_cum_ret(strat_ret)[-1]
-                fitness_val_winrate, win_pos = trading_metric(strat_ret, enter_pos, exit_pos)
-
-            elif self.strategy == 'rsi':
-                window = params[0]
-                buy_sig = params[1]
-                sell_sig = params[2]
-
-                rsi = talib.RSI(self.price, timeperiod=window)
-                idc = rsi_signal(self.price, rsi=rsi, buy_sig=buy_sig, sell_sig=sell_sig, error_tol=sig_tol)
-                enter_pos, exit_pos = trade_timing(idc)
-                strat_ret = strategy_ret(idc, self.asset_ret)
-                fitness_val_cumret = strategy_cum_ret(strat_ret)[-1]
-                fitness_val_winrate, win_pos = trading_metric(strat_ret, enter_pos, exit_pos)
-
-            elif self.strategy == 'sma':
-                short_window = params[0]
-                long_window = params[1]
-
-                sma_short = talib.MA(self.price, timeperiod=short_window)
-                sma_long = talib.MA(self.price, timeperiod=long_window)
-                idc = sma_signal(self.price, sma_short=sma_short, sma_long=sma_long)
-                enter_pos, exit_pos = trade_timing(idc)
-                strat_ret = strategy_ret(idc, self.asset_ret)
-                fitness_val_cumret = strategy_cum_ret(strat_ret)[-1]
-                fitness_val_winrate, win_pos = trading_metric(strat_ret, enter_pos, exit_pos)
-
-        elif self.method == 'multiple':
-            if self.strategy == 'RSInSMA':
-                rsi_window = params[0]
-                buy_sig = params[1]
-                sell_sig = params[2]
-                short_window = params[3]
-                long_window = params[4]
-                exit_sig = params[5]  # param (indicator) that we use to decide when to close our position
-
-                rsi = talib.RSI(self.price, timeperiod=rsi_window)
-                sma_short = talib.MA(self.price, timeperiod=short_window)
-                sma_long = talib.MA(self.price, timeperiod=long_window)
-                idc = rsinsma_signal(self.price, rsi=rsi, buy_sig=buy_sig, sell_sig=sell_sig,
-                                     sma_short=sma_short, sma_long=sma_long, error_tol=sig_tol, exit_sig=exit_sig)
-                enter_pos, exit_pos = trade_timing(idc)
-                strat_ret = strategy_ret(idc, self.asset_ret)
-                fitness_val_cumret = strategy_cum_ret(strat_ret)[-1]
-                fitness_val_winrate, win_pos = trading_metric(strat_ret, enter_pos, exit_pos)
-
-        return fitness_val_cumret, fitness_val_winrate
-
-    def _fitness_evaluation(self, pop):
-        result = {}
-        fit_vals_lst = []
-        winrate = []
-        win_pat = []
-        params = []
-        for ind in pop:
-            fit_vals_lst.append(self._fitness_cal(ind)[0])
-            winrate.append(self._fitness_cal(ind)[1])
-            win_pat.append(self._fitness_cal(ind)[2])
-            params.append(ind)
-
-        # to ensure the denominator is not equal to zero
-        if max(fit_vals_lst) - min(fit_vals_lst) != 0:
-            norm_fit = [((i - min(fit_vals_lst)) / (max(fit_vals_lst) - min(fit_vals_lst))) for i in fit_vals_lst]
-            norm_fit_wgh = [np.round(i / sum(norm_fit), 3) for i in norm_fit]
-        else:
-            norm_fit_wgh = [0 for i in range(len(fit_vals_lst))]
-        result['fit_vals'] = fit_vals_lst
-        result['win_rate'] = winrate
-        result['win_patterns'] = win_pat
-        result['fit_weight'] = norm_fit_wgh
-        result['params'] = np.array(params)
-        return result
-
-    def _crossover(self, parentA, parentB):
-        gene_len_a = len(parentA)
-        child = np.array([np.nan for i in range(gene_len_a)])
-        if self.method == 'single':
-            if self.idc[0] == 'rsi' or self.idc[0] == 'sma':
-                gene_diversity = list(itertools.combinations(np.array(range(gene_len_a)),
-                                                             random.randint(1, gene_len_a)))
-                gene_select = list(gene_diversity[random.randint(0, len(gene_diversity))])
-                inheritedGeneA = parentA[gene_select]
-                child[gene_select] = inheritedGeneA
-
-                crossover_pos = [i for i in range(gene_len_a) if np.isnan(child[i])]
-                child[crossover_pos] = parentB[crossover_pos]
-        elif self.method == 'multiple':
-            gene_diversity = list(itertools.combinations(np.array(range(gene_len_a)),
-                                                         random.randint(1, gene_len_a)))
-            gene_select = list(gene_diversity[random.randint(0, len(gene_diversity))])
-            inheritedGeneA = parentA[gene_select]
-            child[gene_select] = inheritedGeneA
-
-            crossover_pos = [i for i in range(gene_len_a) if np.isnan(child[i])]
-            child[crossover_pos] = parentB[crossover_pos]
-
-        return child
-
-    def fit(self, pop, if_params_mod=None):
-        """Fit to the data.
-        Parameters
-        ----------
-        pop : list
-            Generated population.
-        if_params_mod : dict
-            Used to adjust the position of the parameter, when you expect the lower value might exceeds
-            higher value after crossover process.
-        For example
-        -----------
-        >>> In: model.fit(init_pop, if_params_mod={'position': [3, 4]})
-        """
-        self._verbose_reporter()
-
-        if if_params_mod is not None:
-            pop = params_mod(pop, position=if_params_mod['position'])
-
-        pop_fit = self._fitness_evaluation(pop)
-        best_fit_global = np.max(pop_fit['fit_vals'])
-        best_fit_idx = pop_fit['fit_vals'].index(best_fit_global)
-        best_params_global = pop_fit['params'][best_fit_idx]
-        best_winrate_global = pop_fit['win_rate'][best_fit_idx]
-
-        run_result = {'generation': 0,
-                      'expected_return': best_fit_global,
-                      'win_rate': best_winrate_global,
-                      'parameters': best_params_global}
-        self._verbose_reporter(run_result)
-
-        # Iterate over all generations
-        for g in range(1, self.generations):
-            new_pop = Parallel(n_jobs=2)(delayed(self._tournament_evolve)(pop_fit)
-                                         for i in range(self.pop_size))
-            if if_params_mod is not None:
-                new_pop = params_mod(new_pop, position=if_params_mod['position'])
-
-            pop_fit = self._fitness_evaluation(new_pop)
-            best_fit = np.max(pop_fit['fit_vals'])
-            best_fit_idx = pop_fit['fit_vals'].index(best_fit)
-            best_params = pop_fit['params'][best_fit_idx]
-            best_winrate = pop_fit['win_rate'][best_fit_idx]
-
-            if (best_fit >= best_fit_global) and (best_winrate >= 0.75):
-                best_fit_global = best_fit
-                best_params_global = best_params
-                best_winrate_global = best_winrate
-                run_result = {'generation': g,
-                              'expected_return': best_fit_global,
-                              'win_rate': best_winrate_global,
-                              'parameters': best_params_global}
-                self._verbose_reporter(run_result)
-
-            elif (best_fit > best_fit_global) and (best_winrate >= best_winrate_global):
-                best_fit_global = best_fit
-                best_params_global = best_params
-                best_winrate_global = best_winrate
-                run_result = {'generation': g,
-                              'expected_return': best_fit_global,
-                              'win_rate': best_winrate_global,
-                              'parameters': best_params_global}
-                self._verbose_reporter(run_result)
-
+    def crossover(parents):
+        parents = [p[1] for p in parents]
+        new_gen = [parents[0]]
+        for _ in range(pop_count-1):
+            if rand() > r_cross:
+                new_gen.append(choice(parents))
             else:
-                run_result = {'generation': g,
-                              'expected_return': best_fit_global,
-                              'win_rate': best_winrate_global,
-                              'parameters': best_params_global}
-                self._verbose_reporter(run_result)
+                child = choice(parents)
+                keys = list(parents[0].keys())
+                shuffle(keys)
+                left_keys = keys[:int(len(keys)/2)]
+                other_parent = choice(parents)
+                for key in left_keys:
+                    child[key] = other_parent[key]
+                new_gen.append(child)
+        return new_gen
 
-        self.best_params = best_params_global
-        return pop
+    def mutate(pop):
+        def mut_val(k,v):
+            new_val = -1
+            while new_val < param_ranges[k][0] or new_val > param_ranges[k][1]:
+                new_val = int(v * uniform(1-max_diff,1+max_diff))
+            return new_val
+        return [{k: mut_val(k,v) for k,v in config.items()} for config in pop]
 
-    def _tournament_evolve(self, parents_fit_evals):
-        def _selection(fit_evals, tournament_size=3):
-            contenders = random.randint(0, self.pop_size, [2, tournament_size])
-            selected_parent_lst = []
-            for i in range(len(contenders)):
-                contenders_fit = [fit_evals['fit_weight'][i] for i in contenders[i]]
-                contenders_params = [fit_evals['params'][i] for i in contenders[i]]
-                contenders_index = int(np.argmax(contenders_fit))
-                selected_parent = contenders_params[contenders_index]
-                selected_parent_lst.append(selected_parent)
-            selected_parentA = selected_parent_lst[0]
-            selected_parentB = selected_parent_lst[1]
-            return selected_parentA, selected_parentB
+    pop = populate()
+    for i in range(gen_count):
+        fitest = select(pop)
+        if verbose:
+            print(f'== gen {i} ==')
+            for f in fitest:
+                print(f)
+            print('\n')
+        pop = mutate(crossover(fitest))
+    return pop[0]
 
-        parentA, parentB = _selection(parents_fit_evals)
-        new_chromosome = parentA
-        if random.random() <= self.crossover_prob:
-            new_chromosome = self._crossover(parentA, parentB)
-        new_chromosome = list(new_chromosome)
-        return new_chromosome
-
-    def predict(self, test_set, error_tol=0.03):
-        """Predict future return and win rate on test vectors X.
-        Parameters
-        ----------
-        test_set : np.array
-            Test vectors X.
-        error_tol : float
-            This parameter is an acceptable error when calculating trading signals, if the number is high, the
-            trading frequency will be high as well.
-        For example
-        -----------
-        >>> In: from sklearn.model_selection import train_test_split
-        >>> In: X_train, X_test = train_test_split(asset_price, shuffle=False)
-        >>> In: pred_ret, pred_winrate = model.predict(X_test, error_tol=0.03)
-        """
-        test_ret = DataFrame(test_set, columns=['return'])['return'].pct_change().values
-        params = self.best_params
-        order_status = 'no_order'
-        ta_direc = 'no'
-        pos = [0] * 30
-        
-        n = len(test_set)
-        for i in range(1, n):
-            if order_status == 'no_order':
-                if self.method == 'single':
-                    if self.strategy == 'rsi':
-                        window = params[0]
-                        buy_sig = params[1]
-                        sell_sig = params[2]
-
-                        rsi = talib.RSI(test_set, timeperiod=window)
-                        pre_rsi = rsi[i - 1]
-                        cur_rsi = rsi[i]
-
-                        if (cur_rsi >= sell_sig > pre_rsi) or (pre_rsi > sell_sig and pre_rsi > cur_rsi
-                                                               and (abs(
-                                    cur_rsi - sell_sig) / sell_sig) <= error_tol):
-                            ta_direc = 'short'
-                            order_status = 'order_placed'
-                            pos.append(-1)
-
-                        elif (cur_rsi <= buy_sig < pre_rsi) or (pre_rsi < buy_sig and pre_rsi < cur_rsi
-                                                                and (abs(cur_rsi - buy_sig)
-                                                                     / buy_sig) <= error_tol):
-                            ta_direc = 'long'
-                            order_status = 'order_placed'
-                            pos.append(1)
-                        else:
-                            order_status = 'no_order'
-                            pos.append(0)
-
-                    elif self.strategy == 'sma':
-                        short_window = params[0]
-                        long_window = params[1]
-                        sma_short = talib.MA(self.price, timeperiod=short_window)
-                        sma_long = talib.MA(self.price, timeperiod=long_window)
-
-                        pre_sma_short = sma_short[i - 1]
-                        cur_sma_short = sma_short[i]
-                        pre_sma_long = sma_long[i - 1]
-                        cur_sma_long = sma_long[i]
-
-                        if (pre_sma_long < pre_sma_short) and (cur_sma_long > cur_sma_short):
-                            ta_direc = 'short'
-                            order_status = 'order_placed'
-                            pos.append(-1)
-                        elif (pre_sma_long > pre_sma_short) and (cur_sma_long < cur_sma_short):
-                            ta_direc = 'long'
-                            order_status = 'order_placed'
-                            pos.append(1)
-                        else:
-                            order_status = 'no_order'
-                            pos.append(0)
-
-                elif self.method == "multiple":
-                    if self.strategy == 'RSInSMA':
-                        window = params[0]
-                        buy_sig = params[1]
-                        sell_sig = params[2]
-                        short_window = params[3]
-                        long_window = params[4]
-                        rsi = talib.RSI(test_set, timeperiod=window)
-                        sma_short = talib.MA(self.price, timeperiod=short_window)
-                        sma_long = talib.MA(self.price, timeperiod=long_window)
-
-                        pre_rsi = rsi[i - 1]
-                        cur_rsi = rsi[i]
-
-                        pre_sma_short = sma_short[i - 1]
-                        cur_sma_short = sma_short[i]
-                        pre_sma_long = sma_long[i - 1]
-                        cur_sma_long = sma_long[i]
-
-                        if ((cur_rsi >= sell_sig > pre_rsi) or (pre_rsi > sell_sig and pre_rsi > cur_rsi
-                                                                and (abs(
-                                    cur_rsi - sell_sig) / sell_sig) <= error_tol)) \
-                                and ((pre_sma_long < pre_sma_short) and (cur_sma_long > cur_sma_short)):
-                            ta_direc = 'short'
-                            order_status = 'order_placed'
-                            pos.append(-1)
-
-                        elif ((cur_rsi <= buy_sig < pre_rsi) or (pre_rsi < buy_sig and pre_rsi < cur_rsi
-                                                                 and (abs(
-                                    cur_rsi - buy_sig) / buy_sig) <= error_tol)) \
-                                and ((pre_sma_long > pre_sma_short) and (cur_sma_long < cur_sma_short)):
-                            ta_direc = 'long'
-                            order_status = 'order_placed'
-                            pos.append(1)
-                        else:
-                            order_status = 'no_order'
-                            pos.append(0)
-                else:
-                    pos.append(0)
-
-            elif order_status == 'order_placed':
-                if self.method == 'single':
-                    if self.strategy == 'rsi':
-                        window = params[0]
-                        buy_sig = params[1]
-                        sell_sig = params[2]
-
-                        rsi = talib.RSI(test_set, timeperiod=window)
-                        pre_rsi = rsi[i - 1]
-                        cur_rsi = rsi[i]
-
-                        if ta_direc == 'long':
-                            if (pre_rsi < cur_rsi and (abs(cur_rsi - sell_sig) / sell_sig) < error_tol) or (
-                                    cur_rsi > sell_sig):
-                                order_status = 'no_order'
-                                ta_direc = 'no_direc'
-                                pos.append(0)
-                            else:
-                                pos.append(1)
-                        elif ta_direc == 'short':
-                            if (pre_rsi > cur_rsi and (abs(cur_rsi - buy_sig) / buy_sig) < error_tol) or (
-                                    cur_rsi < buy_sig):
-                                order_status = 'no_order'
-                                ta_direc = 'no_direc'
-                                pos.append(0)
-                            else:
-                                pos.append(-1)
-
-                    elif self.strategy == 'sma':
-                        short_window = params[0]
-                        long_window = params[1]
-                        sma_short = talib.MA(self.price, timeperiod=short_window)
-                        sma_long = talib.MA(self.price, timeperiod=long_window)
-
-                        pre_sma_short = sma_short[i - 1]
-                        cur_sma_short = sma_short[i]
-                        pre_sma_long = sma_long[i - 1]
-                        cur_sma_long = sma_long[i]
-
-                        if ta_direc == 'long':
-                            if (pre_sma_long < pre_sma_short) and (cur_sma_long > cur_sma_short):
-                                order_status = 'no_order'
-                                ta_direc = 'no_direc'
-                                pos.append(0)
-                            else:
-                                pos.append(1)
-
-                        elif ta_direc == 'short':
-                            if (pre_sma_long > pre_sma_short) and (cur_sma_long < cur_sma_short):
-                                order_status = 'no_order'
-                                ta_direc = 'no_direc'
-                                pos.append(0)
-                            else:
-                                pos.append(-1)
-
-                elif self.method == 'multiple':
-                    if self.strategy == 'RSInSMA':
-                        window = params[0]
-                        buy_sig = params[1]
-                        sell_sig = params[2]
-                        short_window = params[3]
-                        long_window = params[4]
-                        exit_sig = params[5]
-
-                        rsi = talib.RSI(test_set, timeperiod=window)
-                        sma_short = talib.MA(self.price, timeperiod=short_window)
-                        sma_long = talib.MA(self.price, timeperiod=long_window)
-
-                        pre_rsi = rsi[i - 1]
-                        cur_rsi = rsi[i]
-
-                        pre_sma_short = sma_short[i - 1]
-                        cur_sma_short = sma_short[i]
-                        pre_sma_long = sma_long[i - 1]
-                        cur_sma_long = sma_long[i]
-
-                        if exit_sig == 0:
-                            if ta_direc == 'long':
-                                if (pre_rsi < cur_rsi and (abs(cur_rsi - sell_sig) / sell_sig) < error_tol) or (
-                                        cur_rsi > sell_sig):
-                                    order_status = 'no_order'
-                                    ta_direc = 'no_direc'
-                                    pos.append(0)
-                                else:
-                                    pos.append(1)
-                            elif ta_direc == 'short':
-                                if (pre_rsi > cur_rsi and (abs(cur_rsi - buy_sig) / buy_sig) < error_tol) or (
-                                        cur_rsi < buy_sig):
-                                    order_status = 'no_order'
-                                    ta_direc = 'no_direc'
-                                    pos.append(0)
-                                else:
-                                    pos.append(-1)
-                        elif exit_sig == 1:
-                            if ta_direc == 'long':
-                                if pre_sma_short > pre_sma_long and cur_sma_short < cur_sma_long:
-                                    order_status = 'no_order'
-                                    ta_direc = 'no_direc'
-                                    pos.append(0)
-                                else:
-                                    pos.append(1)
-
-                            elif ta_direc == 'short':
-                                if pre_sma_short < pre_sma_long and cur_sma_short > cur_sma_long:
-                                    order_status = 'no_order'
-                                    ta_direc = 'no_direc'
-                                    pos.append(0)
-                                else:
-                                    pos.append(-1)
-
-        strat_ret = strategy_ret(pos, test_ret)
-        pred_cum_ret = strategy_cum_ret(strat_ret)[-1]
-        enter_pos, exit_pos = trade_timing(pos)
-
-        pred_winrate, _ = trading_metric(strat_ret, enter_pos, exit_pos)
-        print(f"The Predicted Strategy Return: {pred_cum_ret}")
-        print(f"The Predicted Win Rate: {pred_winrate}")
-        return pred_cum_ret, pred_winrate
 '''
+- shallow copy df
+- drop where buy and sell is None
+- drop where buy not None and buy.shift not None
+- drop where sell not None and sell.shift not None
+- drop first if sell
+- drop last if buy
+This should leave a list of complete trades (ie. [buy,sell,buy,sell,…])
+- score = sum(df.sell) - sum(df.buy)
+'''
+
+def backtest(data: DataFrame) -> float:
+    data = data.dropna(subset=['buy','sell'], how='all')
+    data.loc[((data.buy.notnull()) & (data.buy.shift().isnull())), 'bought'] = data.buy
+    data.loc[((data.sell.notnull()) & (data.sell.shift().isnull())), 'sold'] = data.sell
+    data.dropna(subset=['bought','sold'], how='all', inplace=True)
+    data.fillna(0, inplace=True)
+    if data.empty:
+        return -math.inf
+    if data['sold'].iat[0] > 0:
+        data.drop(data.head(1).index)
+    if data['bought'].iat[-1] > 0:
+        data.drop(data.tail(1).index)
+    return sum(data.sold) - sum(data.bought)
+
+from backtest import backtest as og_backtest
+
+def brute_optimize(pair, interval, strategy, configs, file_name=None):
+    
+    results = DataFrame(p_map(lambda config: og_backtest({"pair": pair, "interval": interval, "strategy": strategy, "strategy_config": config, "stop_loss": config.get('stop_loss', .35)}, verbose=False, update=False, plot=False)[1], configs)).drop(['best_trade_buy', 'best_trade_sell', 'best_trade_win', 'worst_trade_buy', 'worst_trade_sell', 'worst_trade_win'], axis=1)
+    try:
+        results = results.drop(['best_trade', 'worst_trade'])
+    except: pass
+    results.to_csv(f'./results/{strategy}-{pair}-{interval}')
+    return results.sort_values('score', ascending=False)
+
+
+
+
+
+
+
+
+
+
+from numpy import isnan
+from random import choice, randint
+
+def genalgo_backtest(data, stop_loss, trading_fee=0.001):
+    starting_amount = 100.0
+    data["trade_profit"] = [0] * len(data)
+    data["hodl_profit"] = [0] * len(data)
+    data["stop_loss"] = [None] * len(data)
+    wallet = {"base": starting_amount / 2, "asset": starting_amount / (data.loc[data.index[0], "close"] * 2)}
+    hodl_wallet = wallet.copy()
+    data["bought"] = [None] * len(data)
+    data["sold"] = [None] * len(data)
+    data["stop_lossed"] = [None] * len(data)
+    stop_loss_value = None
+    tally = []
+    for i, row in data.iterrows():
+        if not isnan(row["buy"]) and wallet["base"] > 0:
+            tally.append({"buy": data.loc[i, "close"], 'win': None})
+            data.loc[i, "bought"] = data.loc[i, "close"]
+            fee = wallet["base"] * trading_fee
+            wallet["asset"] += (wallet["base"] - fee) / row["buy"]
+            wallet["base"] = 0.0
+            stop_loss_value = row["buy"] * (1 - stop_loss)
+        elif not stop_loss_value is None and stop_loss_value > row["low"]:
+            tally[-1]["sell"] = stop_loss_value
+            tally[-1]["win"] = bool(False)
+            data.loc[i, "stop_lossed"] = stop_loss_value
+            fee = wallet["asset"] * trading_fee
+            wallet["base"] += (wallet["asset"] - fee) * stop_loss_value
+            wallet["asset"] = 0.0
+            data.loc[i, "stop_loss"] = stop_loss_value
+            stop_loss_value = None
+        elif not isnan(row["sell"]) and wallet["asset"] > 0:
+            if wallet["base"] == 0:
+                tally[-1]["sell"] = data.loc[i, "close"]
+                tally[-1]["win"] = bool(tally[-1]["sell"] > tally[-1]["buy"])
+            else:
+                tally.append({"sell": data.loc[i, "close"], "win": None})
+            data.loc[i, "sold"] = data.loc[i, "close"]
+            fee = wallet["asset"] * trading_fee
+            wallet["base"] += (wallet["asset"] - fee) * row["sell"]
+            wallet["asset"] = 0.0
+            stop_loss_value = None
+
+        if not isnan(row["close"]):
+            data.loc[i, "trade_profit"] = (wallet["base"] + (wallet["asset"] * row["close"])) - starting_amount
+            data.loc[i, "hodl_profit"] = (hodl_wallet["base"] + (hodl_wallet["asset"] * row["close"])) - starting_amount
+
+    data["profit_diff_change"] = (data["trade_profit"] - data["hodl_profit"]) - (data["trade_profit"].shift() - data["hodl_profit"].shift())
+    score = data.trade_profit.iat[-1]#data.profit_diff_change.sum()
+    win_rate = None
+    try:
+        win_rate = len(list(filter(lambda t: t['win'], tally))) / len(list(filter(lambda t: not t['win'] is None, tally)))
+    except: pass
+    for t in tally:
+        t['diff'] = t['sell'] - t['buy'] if 'sell' in t.keys() and 'buy' in t.keys() else None
+    sorted_tally = list(sorted(list(filter(lambda t: not t['diff'] is None, tally)), key=lambda t: t['diff']))
+    best_trade, worst_trade = [sorted_tally[-1], sorted_tally[0]] if len(sorted_tally) > 0 else [None, None]
+    results = {
+        'score': score,
+        'win_rate': win_rate,
+        'trade_freq': f'{len(tally)}/{len(data)}',
+        'best_trade': best_trade,
+        'worst_trade': worst_trade
+    }
+    return data, results
+
+def genalg_optimize(pair, interval, strategy, config_bounds, pop_size, n_iter, max_mut_diff):
+    minutes_in_a_month = 43830
+    data = get_backdata(pair, interval, get_timeframe(interval, minutes_in_a_month))
+
+    def populate(size):
+        get_val = lambda k,v: uniform(v[0], v[1]) if k == 'stop_loss' else int(uniform(v[0], v[1]))
+        return [{'fitness': None, 'config': {k: get_val(k,v) for k,v in config_bounds.items()}} for _ in tqdm(range(size), desc='populating', leave=False)]
+
+    def fit(p):
+        data_df = strategy(data.copy(deep=False), p['config'])
+        p['fitness'] = genalgo_backtest(data_df, p['config']['stop_loss'])[1]
+        return p
+
+    def select(pop):
+        pop = list(p_map(fit, pop, desc='fitting', leave=False))
+        pop = sorted(pop, reverse=True, key=lambda p: p['fitness']['score'])
+        return pop[:int(len(pop)/3)]
+
+    def crossover(selected):
+        return [{'fitness': None, 'config': {k: choice(selected)['config'][k] for k in selected[0]['config'].keys()}} for _ in tqdm(range(len(selected)), desc='mixing', leave=False)]
+
+    def mutate(subpop):
+        def mut_val(k,v):
+            new_val = -1
+            while new_val < config_bounds[k][0] or new_val > config_bounds[k][1]:
+                new_val = v * uniform(1-max_mut_diff,1+max_mut_diff)
+                if not k in ['stop_loss', 'rsi_lb', 'rsi_ub']:
+                    new_val = int(new_val)
+            return new_val
+        return [{'fitness': None, 'config': {k: mut_val(k,v) for k,v in p['config'].items()}} for p in tqdm(subpop, desc='mutating', leave=False)]
+
+    def prettyprint(p):
+        print(p['fitness']['score'], p['config'])
+
+    best_counter, curr_best = 0, None
+    pop = populate(pop_size)
+    for i in range(n_iter):
+        print(f'\n== GEN {i+1}/{n_iter} ==')
+        selected = select(pop)
+        if selected[0]['fitness']['score'] == curr_best:
+            best_counter += 1
+        else: 
+            curr_best = selected[0]['fitness']['score']
+            best_counter = 0
+        for p in selected[:10]:
+            prettyprint(p)
+        if i == n_iter-1 or best_counter >= 5:
+            return selected
+        crossed = crossover(selected)
+        mutated = mutate(selected)
+        fill_count = pop_size - 1 - len(mutated) - len(crossed)
+        pop = [selected[0], *mutated, *crossed, *populate(fill_count)]
+
+def main(opt_type):
+    if opt_type == 'brute':
+        configs = [{"slow_len": 26, "fast_len": 12, "sig_len": 9, 'rsi_len': l, 'rsi_lb': lb, 'rsi_ub': ub, 'stop_loss': sl} for l in [4,8,14,24] for lb in [25,30,35,40] for ub in [60,65,70,75] for sl in [.05,.1,.15,.2,.3,.35]]
+        print(brute_optimize('BTCUSDT', '1m', 'macdas_strat', configs).head(10))
+    elif opt_type == 'genalg':
+        pair, interval = 'BTCUSDT', '1m'
+        strategy = get_strategy('macdas_strat')
+        config_bounds = {
+            'slow_len': [25,50],
+            'fast_len': [5,24],
+            'sig_len': [1,12],
+            'rsi_len': [5,50],
+            'rsi_lb': [0,50],
+            'rsi_ub': [50,100],
+            'stop_loss': [0,.5]
+        }
+        pop_size, n_iter, max_mut_diff = 1000, 1000, .2
+        print(genalg_optimize(pair, interval, strategy, config_bounds, pop_size, n_iter, max_mut_diff))
+    elif opt_type == 'compare':
+        data = get_backdata('BTCUSDT', '1m', '1 month ago', update=False)
+        strategy = get_strategy('macdas_strat')
+        '''
+        default = strategy(data.copy(deep=False), {"slow_len": 26, "fast_len": 12, "sig_len": 9, 'rsi_len': 8, 'rsi_lb': 35, 'rsi_ub': 65})
+        default, _ = genalgo_backtest(data=default, stop_loss=.35)
+
+        brute = strategy(data.copy(deep=False), {'slow_len': 26, 'fast_len': 12, 'sig_len': 9, 'rsi_len': 24, 'rsi_lb': 35, 'rsi_ub': 65})
+        brute, _ = genalgo_backtest(data=brute, stop_loss=.05)
+        '''
+        genalgo = strategy(data, {'slow_len': 45, 'fast_len': 8, 'sig_len': 7, 'rsi_len': 20, 'rsi_lb': 34.23, 'rsi_ub': 64.42})
+        genalgo, _ = genalgo_backtest(data=genalgo, stop_loss=0.26)
+        get_strategy_plot('macdas_strat')(genalgo, 'BTCUSDT', '1m').show()
+        '''
+        from plot import plot_compare
+        index = default.index
+        profit_lines = [default.hodl_profit, default.trade_profit, brute.trade_profit, genalgo.trade_profit]
+        plot_compare(profit_lines, index)
+        '''
+
+if __name__ == '__main__':
+    #main('brute')
+    main('genalg')
+    #main('compare')
