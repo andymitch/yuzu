@@ -5,8 +5,10 @@ from pandas import DataFrame
 from plot import Plot
 
 
-def macdas_strat(data: DataFrame, config: object = {"slow_len": 26, "fast_len": 12, "sig_len": 9, 'rsi_len': 8, 'rsi_lb': 35, 'rsi_ub': 65}) -> DataFrame:
-    #print(data.close.to_list(), config)
+def macdas_strat(
+    data: DataFrame,
+    config: object = {"slow_len": 26, "fast_len": 12, "sig_len": 9, 'rsi_len': 8, 'rsi_lb': 35, 'rsi_ub': 65}
+) -> DataFrame:
     data['rsi'] = RSIIndicator(data.close, config['rsi_len']).rsi()
     data['fast'] = EMA(data.close, config['fast_len'])
     data['slow'] = EMA(data.close, config['slow_len'])
@@ -17,7 +19,6 @@ def macdas_strat(data: DataFrame, config: object = {"slow_len": 26, "fast_len": 
     data['hist'] = macdas - sigdas
     data.loc[((data['hist']>0) & (data.rsi < config['rsi_lb'])), 'buy'] = data.close
     data.loc[((data['hist']<0) & (data.rsi > config['rsi_ub'])), 'sell'] = data.close
-    #print(data)
     return data
 
 def plot(data, pair, interval):
