@@ -15,6 +15,9 @@ def get_strategy(strategy_name: str):
 def get_strategy_plot(strategy_name: str):
     return getattr(import_module(f"strategies.{strategy_name}"), "plot")
 
+def get_strategy_configs(strategy_name: str):
+    return getattr(import_module(f"strategies.{strategy_name}"), "config_bounds")
+
 
 def get_exchange(exchange_name: str, exchange_key: str, exchange_secret: str, min_ticks: str, stop_loss_percent: float) -> IExchange:
     if exchange_name == "BinanceUS":

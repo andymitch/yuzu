@@ -1,3 +1,6 @@
 notes.txt
 __pycache__/
-backdata/
+backdata/*/*
+workbench.ipynb
+test.py
+results/*

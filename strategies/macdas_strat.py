@@ -15,8 +15,9 @@ def macdas_strat(data: DataFrame, config: object = {"slow_len": 26, "fast_len": 
     macdas = macd - signal
     sigdas = EMA(macdas, config['sig_len'])
     data['hist'] = macdas - sigdas
-    data.loc[((xup(data['hist'])) & (data.rsi < config['rsi_lb'])), 'buy'] = data.close
-    data.loc[((xdn(data['hist'])) & (data.rsi > config['rsi_ub'])), 'sell'] = data.close
+    data.loc[((data['hist']>0) & (data.rsi < config['rsi_lb'])), 'buy'] = data.close
+    data.loc[((data['hist']<0) & (data.rsi > config['rsi_ub'])), 'sell'] = data.close
+    #print(data)
     return data
 
 def plot(data, pair, interval):
@@ -24,3 +25,12 @@ def plot(data, pair, interval):
     plot.add_trace('hist', 1, 'bar')
     plot.add_trace('rsi', 1, 'line', 'purple', True)
     return plot
+
+config_bounds = {
+    'slow_len': [25,50],
+    'fast_len': [5,24],
+    'sig_len': [1,12],
+    'rsi_len': [5,50],
+    'rsi_lb': [0,50],
+    'rsi_ub': [50,100]
+}

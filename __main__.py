@@ -3,6 +3,7 @@ from plot import Plot
 from tqdm import tqdm
 from p_tqdm import p_map
 import pandas as pd
+from utils import get_backdata, get_strategy, get_strategy_plot, get_timeframe
 
 #config = {"pair": "ADABTC", "interval": "1d", "strategy": "awesome_strat", "strategy_config": {"rsi_lookback": 8, "rsi_range": 70, "ao_fast_lookback": 5, "ao_slow_lookback": 34}, "stop_loss": 0.35}
 #plot(backtest(config, verbose=True, update=True), [{"column": "ao", "type": "bar"}, {"column": "rsi", "type": "line", "color": "purple"}], "ADABTC").show()
@@ -63,4 +64,9 @@ def main(configs):
 #configs = [{"slow_len": 26, "fast_len": 12, "sig_len": 9, 'rsi_len': l, 'rsi_lb': lb, 'rsi_ub': ub, 'stop_loss': sl} for l in [4,8,14,24] for lb in [25,30,35,40] for ub in [60,65,70,75] for sl in [.05,.1,.15,.2,.3,.35]]
 #main(configs)
 #print(optimize('BTCUSDT', '1d', 'macdas_strat', configs).head(10))
-data, _ = backtest({'pair': 'BTCUSDT', 'interval': '1m', 'strategy': 'macdas_strat', 'strategy_config': {"slow_len": 50, "fast_len": 6, "sig_len": 1, 'rsi_len': 1, 'rsi_lb': 1, 'rsi_ub': 22}, 'stop_loss': 1}, verbose=True, update=False, plot=True)
+pair, interval, strategy_name = 'BTCUSDT', '1m', 'macdas_strat'
+config = {'slow_len': 28, 'fast_len': 7, 'sig_len': 2, 'rsi_len': 11, 'rsi_lb': 46.4, 'rsi_ub': 56.4}
+data = get_backdata(pair, interval, get_timeframe(interval, 40000))
+data = get_strategy(strategy_name)(data, config)
+data, _ = backtest(data, stop_loss=.35, verbose=True, update=True)
+get_strategy_plot(strategy_name)(data, pair, interval).show()
