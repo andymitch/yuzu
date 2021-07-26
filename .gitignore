@@ -4,3 +4,4 @@ backdata/*/*
 workbench.ipynb
 test.py
 results/*
+optimize_results.csv
