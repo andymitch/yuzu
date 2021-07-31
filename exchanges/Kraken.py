@@ -1,12 +1,10 @@
-from .IExchange import IExchange
 from pandas import read_csv
 import os
 
 
-class Kraken(IExchange):  # KRAKEN EXCHANGE
+class Kraken:  # KRAKEN EXCHANGE
     def __init__(self, key, secret):
-        super().__init__(key=key, secret=secret)
-        print(self._IExchange__API_KEY, self._IExchange__API_SECRET)
+        pass
         # TODO: setup a client with kraken like binance does
 
     @staticmethod

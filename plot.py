@@ -7,7 +7,7 @@ from numpy import full, nan
 class Plot:
     fig = None
     additional_traces = {}
-    def __init__(self, data: DataFrame, name: str):
+    def __init__(self, data: DataFrame, name: str, show_profit: bool = True):
         self.data = data
         self.candle_traces = [
             {'trace': go.Candlestick(x=self.data.index, open=self.data.open, high=self.data.high, low=self.data.low, close=self.data.close, name=name), 'secondary': False},
@@ -19,24 +19,24 @@ class Plot:
             {'trace': go.Scatter(y=self.data.stop_loss, x=self.data.index, name="stop_loss", mode="markers", marker=dict(color="magenta", symbol="circle-open", size=10)), 'secondary': False}
         ]
         self.profit_traces = [
-            {'trace': self.bar('profit_diff_change'), 'secondary': False},
-            {'trace': self.line('hodl_profit', 'yellow'), 'secondary': True},
-            {'trace': self.line('trade_profit', 'green'), 'secondary': True}
-        ]
+            #{'trace': self.bar('profit_diff_change'), 'secondary': False},
+            #{'trace': self.line('hodl_profit', 'yellow'), 'secondary': True},
+            {'trace': self.line('trade_profit', 'green'), 'secondary': False}#True}
+        ] if show_profit else []
 
+    trace_names = []
     def add_trace(self, col: str, row: int, _type: str, color=None, secondary=False):
-        trace = {'trace': None, 'secondary': secondary}
-        if _type == 'bar':
-            trace['trace'] = self.bar(col)
-        else: # _type == 'line'
-            trace['trace'] = self.line(col, color)
+        trace = {'trace': self.bar(col) if _type == 'bar' else self.line(col, color), 'secondary': secondary}
         if row == 0:
+            if col in self.trace_names:
+                self.candle_traces.pop()
+            else:
+                self.trace_names.append(col)
             self.candle_traces.append(trace)
         else:
-            if row in self.additional_traces.keys():
-                self.additional_traces[row].append(trace)
-            else:
-                self.additional_traces[row] = [trace]
+            if not row in self.additional_traces.keys():
+                self.additional_traces[row] = {}
+            self.additional_traces[row][col] = trace
 
     def bar(self, col):
         marker_colors = full(self.data[col].shape, nan, dtype=object)
@@ -54,7 +54,7 @@ class Plot:
         for trace in self.candle_traces:
             self.fig.add_trace(trace['trace'], row=1, col=1, secondary_y=trace['secondary'])
         for row, subplots in self.additional_traces.items():
-            for subplot in subplots:
+            for subplot in subplots.values():
                 self.fig.add_trace(subplot['trace'], row=row+1, col=1, secondary_y=subplot['secondary'])
         for trace in self.profit_traces:
             self.fig.add_trace(trace['trace'], row=row_count, col=1, secondary_y=trace['secondary'])

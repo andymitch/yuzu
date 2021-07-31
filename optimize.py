@@ -1,6 +1,6 @@
 from random import uniform, choice, shuffle
 from pandas import DataFrame, notna
-from utils import get_strategy, get_backdata, get_timeframe, get_strategy_plot, get_strategy_configs
+from utils import get_strategy, get_backdata, get_timeframe, get_strategy_plot, get_strategy_config_bounds
 import math
 from tqdm import tqdm
 from numpy.random import rand
@@ -49,7 +49,7 @@ def optimize(strategy_name, pair, interval, pop_size=1000, n_iter=100, max_mut_d
     data = get_backdata(pair, interval, get_timeframe(interval, ticks), update=update)
     print('collected!')
     strategy = get_strategy(strategy_name)
-    config_bounds = get_strategy_configs(strategy_name)
+    config_bounds = get_strategy_config_bounds(strategy_name)
 
     def _save(result):
         file = open('optimize_results.csv', 'a')

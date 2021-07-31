@@ -5,9 +5,12 @@ from pandas import DataFrame
 from plot import Plot
 
 
+best_config = {'slow_len': 43, 'fast_len': 5, 'sig_len': 3, 'rsi_len': 8, 'rsi_lb': 12.8, 'rsi_ub': 88.0}
+min_ticks = 44
+
 def macdas_strat(
     data: DataFrame,
-    config: object = {"slow_len": 26, "fast_len": 12, "sig_len": 9, 'rsi_len': 8, 'rsi_lb': 35, 'rsi_ub': 65}
+    config: object = best_config
 ) -> DataFrame:
     data['rsi'] = RSIIndicator(data.close, config['rsi_len']).rsi()
     data['fast'] = EMA(data.close, config['fast_len'])
@@ -21,8 +24,8 @@ def macdas_strat(
     data.loc[((data['hist']<0) & (data.rsi > config['rsi_ub'])), 'sell'] = data.close
     return data
 
-def plot(data, pair, interval):
-    plot = Plot(data, f"macdas_strat ({pair} {interval})")
+def plot(data, pair, interval, show_profit=True):
+    plot = Plot(data, f"macdas_strat ({pair} {interval})", show_profit)
     plot.add_trace('hist', 1, 'bar')
     plot.add_trace('rsi', 1, 'line', 'purple', True)
     return plot
