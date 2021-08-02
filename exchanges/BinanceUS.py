@@ -6,8 +6,8 @@ from typing import Union, List
 from pytz import reference
 import pandas as pd
 import datetime
-import os
-
+import os, json, requests
+import numpy as np, math
 
 LEFT, RIGHT = 0, 1
 
@@ -19,7 +19,25 @@ def get_start(interval, ticks=1000):
     num = int(interval[:-1]) * ticks
     return f"{num} {interval_map[interval[-1]]} ago"
 
+#curr_time.epoch * 1000 * from_interval(interval)
+def rand_end(interval):
+    curr_time: datetime = datetime.datetime.now(tz=reference.LocalTimezone())
+    epoch: long = int(curr_time.timestamp())
+    print(epoch)
+
+
+get_base_value = lambda base: 60000 if base == 'm' else 3600000 if base == 'h' else 86400000
+def get_epochs(ticks, interval, max, end=None):
+    if end is None:
+        end = datetime.datetime.now().timestamp()
+    value, base = int(interval[:-1]), interval[-1]
+    value *= get_base_value(base)
+    start = end - int(value * ticks)
+    tfs = np.linspace(start, end, math.ceil(ticks/1000), dtype=int)
+    return [(tfs[i]+value, tfs[i+1]) for i in range(len(tfs)-1)]
+
 class BinanceUS():
+
     pairs = get_available_pairs()
 
     def __init__(self, key, secret):
@@ -51,8 +69,19 @@ class BinanceUS():
         return {asset: {'amount': b['free'], 'value': self.quote_assets(b['free']) * b['free']}}
 
     @staticmethod
-    def get_backdata(pair, interval, min_ticks):
-        klines = Client().get_historical_klines(pair, interval, get_start(interval, min_ticks))
+    def get_backdata(pair, interval, min_ticks, end_epoch=None):
+        klines = []
+        max_tick_request = 1000
+        if min_ticks > max_tick_request:
+            for timeframe in get_epochs(min_ticks, interval, max_tick_request, end_epoch):
+                params = {'symbol': pair, 'interval': interval, 'startTime': timeframe[0], 'endTime': timeframe[1]}
+                res = requests.get('https://api.binance.com/api/v3/klines', params=params)
+                print('res:', res.text)
+                klines = klines.append(json.loads(res.text))
+        else:
+            params = {'symbol': pair, 'interval': interval, 'limit': min_ticks}
+            if not end_epoch is None: params['endTime'] = end_epoch
+            klines = json.loads(requests.get('https://api.binance.com/api/v3/klines', params=params).text)
         cols = ["time", "open", "high", "low", "close", "volume", "close_time", "qav", "trade_count", "taker_bav", "taker_qav", "ignore"]
         data = DataFrame(klines, columns=cols).drop(["close_time", "qav", "trade_count", "taker_bav", "taker_qav", "ignore"], axis=1)
         data[["open", "high", "low", "close", "volume"]] = data[["open", "high", "low", "close", "volume"]].apply(to_numeric, axis=1)
@@ -64,13 +93,10 @@ class BinanceUS():
         open, high, low, close, volume = float(msg['k']['o']), float(msg['k']['h']), float(msg['k']['l']), float(msg['k']['c']), float(msg['k']['v'])
         row = {'open': open, 'high': high, 'low': low, 'close': close, 'volume': volume}
 
-        print('CONDITIONING DATA')
         if time in data.index.values:
-            print('UPDATING TICK')
             data.loc[time, row.keys()] = row.values()
             return data, False
         else:
-            print('ADDING TICK')
             data = data.append(DataFrame(row, index=[time]))
             return data, True
 

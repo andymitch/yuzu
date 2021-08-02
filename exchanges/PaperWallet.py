@@ -15,8 +15,8 @@ class PaperWallet:
 
     def buy(self, pair_left: str, pair_right: str, price: float, fee: float = .001) -> bool:
         if pair_right in self.balance.keys() and self.balance[pair_right] > 0:
-            self.balance[pair_right] = 0.0
             self.fund(pair_left, self.balance[pair_right] * (1-fee) / price)
+            self.balance[pair_right] = 0.0
             return True
         return False
 
@@ -29,9 +29,3 @@ class PaperWallet:
 
     def get_balance(self, pair_left: str, pair_right: str, price: float) -> dict:
         return self.balance[pair_right] + (self.balance[pair_left] * price)
-        '''
-        coins = self.assets.keys() if coin == 'all' else [coin] if coin in self.assets.keys() else []
-        values = get_exchange(self.exchange_name).quote_pairs([f'{coin}{base}' for coin in coins])
-        balances = {c: {'amount': self.balance[c], 'value': values[c] * self.balance[c]} for c in coins}
-        return {'total': sum([c['value'] for c in balances.values()]), 'balances': balances}
-        '''

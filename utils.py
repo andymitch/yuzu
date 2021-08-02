@@ -1,13 +1,13 @@
 from exchanges import *
 from strategies import *
-import datetime, os
+import datetime, os, math
 from pandas import DataFrame, read_csv, to_numeric
 from binance import Client
 from importlib import import_module
 from collections import MutableMapping
-import os
 from dotenv import load_dotenv
 from typing import Union
+import numpy as np
 
 def get_strategy(strategy_name: str):
     return getattr(import_module(f"strategies.{strategy_name}"), strategy_name)
@@ -42,14 +42,13 @@ def get_keypair(exchange_name: str, key: str = None, secret: str = None) -> (str
         os.environ[f'{exchange_name.upper()}_SECRET'] = secret
         return key, secret
 
-
-def get_backdata(pair, interval, ticks: int = 1000, update=False, exchange="BinanceUS") -> DataFrame:
+def get_backdata(pair, interval, ticks: int = 1000, end_epoch=None, exchange="BinanceUS") -> DataFrame:
     if exchange == "BinanceUS":
-        return BinanceUS.get_backdata(pair, interval, ticks, update)
+        return BinanceUS.get_backdata(pair, interval, ticks, end_epoch)
     elif exchange == "Kraken":
-        return Kraken.get_backdata(pair, interval, ticks, update)
+        return Kraken.get_backdata(pair, interval, ticks, end_epoch)
     elif exchange == "CoinbasePro":
-        return CoinbasePro.get_backdata(pair, interval, ticks, update)
+        return CoinbasePro.get_backdata(pair, interval, ticks, end_epoch)
 
 
 def get_timeframe(interval, ticks=1000):
