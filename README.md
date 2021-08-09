@@ -9,9 +9,9 @@ overview, basic steps, in depth steps?
 
 # Usage
 
-## How to [Create a Custom Strategy](./assets/custom-strategy.md)
+## How to [Create a Custom Strategy](./custom-strategy.md)
 
-## How to [Optimize Strategy Parameters](./assets/optimize-strategy.md)
+## How to [Optimize Strategy Parameters](./optimize-strategy.md)
 
 # Features
 
