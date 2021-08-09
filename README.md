@@ -29,3 +29,7 @@ overview, basic steps, in depth steps?
 - [x] <img src="https://logos-download.com/wp-content/uploads/2018/04/Binance_logo_coin.png" width="15" height="15"> **BinanceUS**
 - [ ] <img src="https://cryptorank-images.s3.eu-central-1.amazonaws.com/exchanges/coinbase%20pro1551970953715.png" width="20" height="14"> **CoinbasePro**
 - [x] <img src="https://logos-world.net/wp-content/uploads/2021/02/Kraken-Symbol.png" width="20" height="12"> **Kraken**
+
+## Future updates
+- [ ] support running multiple inner/cross exchange trading pairs
+- [ ] pull data from Polygon.io for improved reliability
