@@ -1,8 +1,1 @@
-notes.txt
-__pycache__/
-backdata/*/*
-workbench.ipynb
-test.py
-results/*
-optimize_results.csv
 .env

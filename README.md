@@ -1,5 +1,5 @@
 
-![yuzu logo](.asets/../assets/yuzu-logo.png)
+![yuzu logo](./yuzu-logo.png)
 
 Yuzu is an open source automated trading bot written in Python. It features exchange specific backtesting, custom strategy making, strategy optimization, adaptive graph plotting, paper trading, and soon will feature live trading.
 
@@ -15,33 +15,18 @@ overview, basic steps, in depth steps?
 
 # Features
 
-- [x] <img src=".asets/../assets/strategy-icon.png" width="15" height="15"> **support custom strategy making** _(quickly add your own strategy functions)_
+- [x] **support custom strategy making** _(quickly add your own strategy functions)_
 
-- [x] <img src=".asets/../assets/graph-icon.png" width="15" height="15"> **adaptive graph plot** _(templated graphing function)_
+- [x] **adaptive graph plot** _(templated graphing function)_
   ![demo plot](.asets/../assets/demo-plot.png)
-- [x] <img src=".asets/../assets/genalgo-icon.png" width="15" height="15"> **optimize strategies** _(optimize strategy parameters using machine learning)_
-- [ ] <img src=".asets/../assets/python-icon.png" width="15" height="15"> **package project** _(install using PyPI to code with YUZU)_
-- [ ] <img src=".asets/../assets/terminal-icon.png" width="15" height="15"> **cli** _(command-line interface to use YUZU)_
-- [ ] <img src=".asets/../assets/gui-icon.png" width="15" height="15"> **gui** _(React-based user interface to use YUZU)_
+- [x] **optimize strategies** _(optimize strategy parameters using machine learning)_
+- [ ] **package project** _(install using PyPI to code with YUZU)_
+- [ ] **cli** _(command-line interface to use YUZU)_
+- [ ] **gui** _(React-based user interface to use YUZU)_
 
 ## Exchange Support
 
-- [x] <img src=".asets/../assets/paper-wallet-icon.png" width="15" height="15"> **PaperWallet** _(used by any exchange to paper trade)_
-- [ ] <img src=".asets/../assets/binance-logo.png" width="15" height="15"> **BinanceUS**
-  - [x] **historical data** _(pull data to backtest)_
-  - [ ] **live trading** _(create websocket to start live trading)_
-  - [ ] **user info** _(pull user account information)_
-- [ ] <img src=".asets/../assets/coinbase-pro-logo.png" width="20" height="14"> **CoinbasePro**
-  - [ ] **historical data** _(pull data to backtest)_
-  - [ ] **live trading** _(create websocket to start live trading)_
-  - [ ] **user info** _(pull user account information)_
-- [ ] <img src=".asets/../assets/kraken-logo.png" width="20" height="14"> **Kraken**
-  - [ ] **historical data** _(pull data to backtest)_
-  - [ ] **live trading** _(create websocket to start live trading)_
-  - [ ] **user info** _(pull user account information)_
-
-# Future Development
-
-## **PHASE 0:**
-
-Yuzu is a project still in development, it can be cloned and
+- [x] **PaperWallet** _(used by any exchange to paper trade)_
+- [x] <img src="https://logos-download.com/wp-content/uploads/2018/04/Binance_logo_coin.png" width="15" height="15"> **BinanceUS**
+- [ ] <img src="https://cryptorank-images.s3.eu-central-1.amazonaws.com/exchanges/coinbase%20pro1551970953715.png" width="20" height="14"> **CoinbasePro**
+- [x] <img src="https://logos-world.net/wp-content/uploads/2021/02/Kraken-Symbol.png" width="20" height="12"> **Kraken**
