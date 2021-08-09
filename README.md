@@ -18,7 +18,6 @@ overview, basic steps, in depth steps?
 - [x] **support custom strategy making** _(quickly add your own strategy functions)_
 
 - [x] **adaptive graph plot** _(templated graphing function)_
-  ![demo plot](.asets/../assets/demo-plot.png)
 - [x] **optimize strategies** _(optimize strategy parameters using machine learning)_
 - [ ] **package project** _(install using PyPI to code with YUZU)_
 - [ ] **cli** _(command-line interface to use YUZU)_
