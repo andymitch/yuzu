@@ -16,7 +16,7 @@ class Websocket:
         on_tick: Callable,
         send_msg: Optional[dict] = None
     ):
-        self.data = data.copy()
+        self.data = data
         self.url = url
         self.pair = pair
         self.interval = interval
@@ -36,10 +36,13 @@ class Websocket:
         time, row = self.condition_tick(json.loads(msg))
         if time and row:
             if time in self.data.index.values:
+                print('update tick')
                 self.data.loc[time, row.keys()] = row.values()
             else:
+                print('new tick')
                 self.data = self.data.append(DataFrame(row, index=[time]))
-                self.on_tick(self.data)
+                self.data = self.on_tick(self.data)
+                print(self.data.columns)
 
     run_thread = None
 
@@ -52,7 +55,7 @@ class Websocket:
         if self.send_msg:
             self.run_thread = Thread(target=self.__run)
             self.run_thread.start()
-            if self.exchange == 'kraken':
+            if self.exchange in ['kraken', 'coinbasepro']:
                 time.sleep(1)
                 self.ws.send(json.dumps(send_msg))
         else:
@@ -61,7 +64,7 @@ class Websocket:
     def stop(self):
         if self.exchange == 'kraken':
             self.ws.send({
-                "event": "subscribe",
+                "event": "unsubscribe",
                 "pair": [self.pair],
                 "subscription": {"name": "ohlc", "interval": self.interval}
             })
@@ -70,4 +73,4 @@ class Websocket:
         self.run_thread.join()
 
 def CreateWebsocket(data: DataFrame, url: str, pair: str, interval: str, condition_tick: Callable[any, Tuple[Optional[str], Optional[Row]]], on_tick: Callable, send_msg: Optional[dict] = None) -> Websocket:
-    return Websocket(data, url, pair, interval, condition_tick, on_tick), send_msg
+    return Websocket(data, url, pair, interval, condition_tick, on_tick, send_msg)

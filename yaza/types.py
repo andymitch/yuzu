@@ -31,3 +31,6 @@ class Pair:
         self.right_prec = right_prec
         self.curr_price = curr_price
         
+
+class BinanceEnum:
+    pass

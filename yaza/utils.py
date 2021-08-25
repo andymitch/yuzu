@@ -1,14 +1,15 @@
 from yuzu.types import ExchangeName, Tuple
 from dotenv import load_dotenv
+from threading import Thread
 from pytz import reference
 import datetime
 import math
+import sys
 import os
 
 from importlib import import_module
 import plotly.graph_objects as go
 from numpy import full, nan
-import os
 
 
 ######################### SETUP
@@ -55,16 +56,16 @@ def ask(question):
         answer = input(question)
     return answer.lower() in ['y','yes']
 
-import threading, sys
-class KillableThread(threading.Thread):
+
+class KillableThread(Thread):
   def __init__(self, *args, **keywords):
-    threading.Thread.__init__(self, *args, **keywords)
+    Thread.__init__(self, *args, **keywords)
     self.killed = False
  
   def start(self):
     self.__run_backup = self.run
     self.run = self.__run     
-    threading.Thread.start(self)
+    Thread.start(self)
  
   def __run(self):
     sys.settrace(self.globaltrace)
