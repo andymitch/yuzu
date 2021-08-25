@@ -1,11 +1,11 @@
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, render_template
 import os
 
 app = Flask('yaza')
 
 @app.route("/")
 def hello():
-    return 'hello!'
+    return render_template('hello.html')
 
 @app.route('/favicon.ico')
 def favicon():
