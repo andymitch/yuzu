@@ -374,14 +374,14 @@ class Exchange:
         def page_not_found(error):
             return page_not_found()
 
-        app.run(host=0.0.0.0, port=5000) # TODO: maybe try host=0.0.0.0 and access via IPv4 or try host=<IPv4>
+        app.run(host='0.0.0.0', port=5000, threading=True)
 
     api_thread = None
     # start websocket, api, and live trading
     def start_trading(self, symbol: str, interval: str):
         pair = get_pair(symbol)
         if not (self.__key or self.__secret):
-            self.paper_wallet = PaperWallet(self.config, init_balance={pair.left: 0.0, pair.right: 100.0}, init_pairs=[pair.left+pair.right], verbose=True, debug=False)
+            self.paper_wallet = PaperWallet(self.config, init_balance={pair.left: 0.0, pair.right: 100.0}, init_pairs=[pair.left+pair.right], verbose=True, debug=True)
         self.data = get_backdata(symbol, interval, max(100, self.config['min_ticks']))
         self.data = self.strategy(self.data, self.config)
         balance = self.quote_curr_balance(symbol) if self.__key and self.__secret else self.paper_wallet.get_balance(pair.left, pair.right, pair.curr_price)
