@@ -1,15 +1,17 @@
 from typing import *
 
 from pandas import DataFrame
-class Row(TypedDict):
+
+
+class Row:
     open: float
     high: float
     low: float
     close: float
     volume: float
 
-OrderType = Union[Literal['buy'], Literal['sell']]
-ExchangeName = Union[Literal['kraken'], Literal['binanceus'], Literal['coinbasepro']]
+OrderType = str
+ExchangeName = str
 
 class Pair:
     def __init__(self,
