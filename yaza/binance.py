@@ -301,7 +301,7 @@ class Exchange:
                 self.data = self.data.append(DataFrame(row, index=[time])).tail(max(500,self.config['min_ticks']))
                 self.data = self.strategy(self.data, self.config)
                 if self.paper_wallet:
-                    self.data = self.paper_wallet.update(self.data, pair.left, pair.right, verbose=True)
+                    self.data = self.paper_wallet.update(self.data, pair.left, pair.right)
                     self.data.loc[self.data.index[-1], "balance"] = self.paper_wallet.get_balance(pair.left, pair.right, pair.curr_price)
                 else:
                     if self.data['buy'].iat[-1]:
@@ -364,7 +364,7 @@ class Exchange:
         def get_plot():
             return plot(self.data, as_html=True)
 
-        @app.rounte("/", methods=['GET'])
+        @app.route("/", methods=['GET'])
         def get_app():
             plot_html = plot(self.data, as_html=True, embed=True)
             balance = self.paper_wallet.balance if self.paper_wallet else self.get_curr_balance()
