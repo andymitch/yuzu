@@ -374,7 +374,7 @@ class Exchange:
         def page_not_found(error):
             return page_not_found()
 
-        app.run(host='0.0.0.0', port=5000, threading=True)
+        app.run(host='0.0.0.0', port=5000)
 
     api_thread = None
     # start websocket, api, and live trading
