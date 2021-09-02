@@ -1,0 +1,12 @@
+
+
+optimize:
+    - take symbol, interval, exchange_name
+    - take strategy_name
+
+    _optimize(data)
+_optimize:
+    - data
+    - take strategy
+    - take config_range
+    - optimize

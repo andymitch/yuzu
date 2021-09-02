@@ -9,7 +9,7 @@ from pytz import reference
 from ..utils import since
 from ..types import *
 
-ROOT_URL = 'https://api.binance.com/api/v3/'
+ROOT_URL = 'https://api.binance.us/api/v3/'
 
 def get_all_pairs(symbol_s: Optional[Union[str, List[str]]] = None) -> Union[Pair, List[Pair]]:
     try:
@@ -92,7 +92,7 @@ def __authenticated_request(http_method, endpoint, key, secret, params={}):
     params = {'url': url, 'params': {}}
     return dispatch_request(http_method)(**params)
 
-def get_available_pairs(tld: str):
+def get_available_pairs():
     exchange_info = requests.get(ROOT_URL + 'exchangeInfo').json()
     prices = {p['symbol']: float(p['price']) for p in requests.get(ROOT_URL + 'ticker/price').json()}
     pair_list = [s['symbol'] for s in exchange_info['symbols']]

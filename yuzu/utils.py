@@ -1,194 +1,172 @@
-from yuzu.types import ExchangeName, Tuple
+from .exchanges import binance, binanceus, coinbasepro, kraken
+from shutil import rmtree
 from dotenv import load_dotenv
-from threading import Thread
-from pytz import reference
-import datetime
-import math
-import sys
-import os
-
-from importlib import import_module
-import plotly.graph_objects as go
-from numpy import full, nan
-
-from pandas import Series
-
-xup = lambda left, right=0: (left.shift() < (right.shift() if isinstance(right, Series) else right)) & (left > right)
-xdn = lambda left, right=0: (left.shift() > (right.shift() if isinstance(right, Series) else right)) & (left < right)
+from pandas import DataFrame
+from questionary import *
+import importlib.util
+import os, json
 
 
-from ta.trend import SMAIndicator, EMAIndicator
-
-# SIMPLE MOVING AVERAGE
-SMA = lambda close, len: SMAIndicator(close, len).sma_indicator()
-
-# EXPONENTIAL MOVING AVERAGE
-EMA = lambda close, len: EMAIndicator(close, len).ema_indicator()
-
-# MOVING AVERAGE CONVERGENCE DIVERGENCE
-class MACD:
-    def __init__(self, close, slow_len, fast_len, sig_len):
-        self.fast_ma = SMA(close, fast_len)
-        self.slow_ma = SMA(close, slow_len)
-        self.macd = self.fast_ma - self.slow_ma
-        self.signal = SMA(self.macd, sig_len)
-        self.hist = self.macd - self.signal
+############################## CONSTANTS
+ROOT_PATH = os.path.expanduser('~') + os.sep + '.yuzu'
+STRATS_PATH = ROOT_PATH + os.sep + 'strategies'
+ENV_PATH = ROOT_PATH + os.sep + '.env'
+CONFIG_PATH = ROOT_PATH + os.sep + 'config.json'
+EXCHANGES = ['binance', 'binanceus', 'coinbasepro', 'kraken']
+EXCHANGE_NAMES = ['Binance', 'Binance US', 'Coinbase Pro', 'Kraken', 'cancel']
+INTERVALS = ['1m','5m','15m','30m','1h','12h','1d']
 
 
-######################### SETUP
+############################## CLI STYLING
+style = Style([
+    ('qmark', 'fg:#673ab7 bold'),       # token in front of the question
+    ('question', 'bold'),               # question text
+    ('answer', 'fg:#f44336 bold'),      # submitted answer text behind the question
+    ('pointer', 'fg:#673ab7 bold'),     # pointer used in select and checkbox prompts
+    ('highlighted', 'fg:#673ab7 bold'), # pointed-at choice in select and checkbox prompts
+    ('selected', 'fg:#cc5454'),         # style for a selected item of a checkbox
+    ('separator', 'fg:#cc5454'),        # separator in lists
+    ('instruction', ''),                # user instructions for select, rawselect, checkbox
+    ('text', ''),                       # plain text
+    ('disabled', 'fg:#858585 italic')   # disabled choices for select and checkbox prompts
+])
 
-def get_avail_strats():
-    try: return [f[:-3] for f in filter(lambda f: f not in ['__pycache__', 'utils'], os.listdir('./yuzu/strategies'))]
-    except:pass
 
-def get_avail_exchanges():
-    try: return [f[:-3] for f in filter(lambda f: f != '__pycache__', os.listdir('./yuzu/exchanges'))]
-    except:pass
+############################## GET HELPERS
+def __get_module(module_name, module_path):
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+def __get_attr(attr_name, module_name, module_path):
+    return getattr(__get_module(module_name, module_path), attr_name)
+
+
+############################## GETTERS
+def get_config(strategy_name: str = '', interval: str = ''):
+    # get config dict from root, strategy, or interval level
+    config = None
+    try:
+        file = open(CONFIG_PATH, 'r')
+        config = file.read()
+        file.close()
+        config = json.loads(config)
+    except:
+        print('\033[91m\033[1mConfig file not found.\033[00m')
+        return
+    if strategy_name:
+        try: config = config[strategy_name]
+        except:
+            print(f'\033[91m\033[1mStrategy: {strategy_name} not configured.\033[00m\033[91m Run: \033[00m\033[93myuzu optimize -s {strategy_name}\033[00m')
+            return
+    if interval:
+        try: config = config[interval]
+        except:
+            print(f'\033[91m\033[1mInterval: {interval} not configured for Strategy: {strategy_name}.\033[00m\033[91m Run: \033[00m\033[93myuzu optimize -s {strategy_name} -i {interval}\033[00m')
+            return
+    return config
+
+def set_config(update, strategy_name: str = '', interval: str = ''):
+    pass # TODO: exact same as get_config but setting target to update then saving config
 
 def get_strategy(strategy_name):
-    try: return getattr(import_module(f"yuzu.strategies.{strategy_name}"), strategy_name)
-    except:pass
-
-def get_config(strategy_name, interval):
-    try: return getattr(import_module(f"yuzu.strategies.{strategy_name}"), "configs")[interval]
-    except:pass
+    strategy_path = STRATS_PATH + os.sep + strategy_name + '.py'
+    return __get_attr('strategy', strategy_name, strategy_path)
 
 def get_config_range(strategy_name):
-    try: return getattr(import_module(f"yuzu.strategies.{strategy_name}"), "config_range")
-    except:pass
+    strategy_path = STRATS_PATH + os.sep + strategy_name + '.py'
+    return __get_attr('config_range', strategy_name, strategy_path)
 
-def get_plot(strategy_name):
-    try: return getattr(import_module(f"yuzu.strategies.{strategy_name}"), "plot")
-    except:pass
+def get_exchange(exchange_name: str):
+    if exchange_name == 'binance': return binance
+    elif exchange_name == 'binanceus': return binanceus
+    elif exchange_name == 'coinbasepro': return coinbasepro
+    elif exchange_name == 'kraken': return kraken
 
-def get_min_ticks(strategy_name):
-    try: return getattr(import_module(f"yuzu.strategies.{strategy_name}"), "min_ticks")
-    except:pass
-
-def get_exchange(exchange_name):
-    try: return getattr(import_module(f"yuzu.exchanges.{exchange_name}"), exchange_name)
-    except:pass
-
-def get_backdata(exchange_name):
-    try: return getattr(import_module(f"yuzu.exchanges.{exchange_name}"), "get_backdata")
-    except:pass
-
-def ask(question):
-    answer = ''
-    while not answer.lower() in ['y','yes','n','no']:
-        answer = input(question)
-    return answer.lower() in ['y','yes']
+def get_strategy_options():
+    return [f.strip('.py') for f in os.listdir(STRATS_PATH)]
 
 
-class KillableThread(Thread):
-  def __init__(self, *args, **keywords):
-    Thread.__init__(self, *args, **keywords)
-    self.killed = False
- 
-  def start(self):
-    self.__run_backup = self.run
-    self.run = self.__run     
-    Thread.start(self)
- 
-  def __run(self):
-    sys.settrace(self.globaltrace)
-    self.__run_backup()
-    self.run = self.__run_backup
- 
-  def globaltrace(self, frame, event, arg):
-    if event == 'call':
-      return self.localtrace
-    else:
-      return None
- 
-  def localtrace(self, frame, event, arg):
-    if self.killed:
-      if event == 'line':
-        raise SystemExit()
-    return self.localtrace
- 
-  def kill(self):
-    self.killed = True
+############################## STRING SELECTORS
+def select_pair(exchange_name: str, pair: str = ''):
+    all_pairs = get_exchange(exchange_name).get_available_pairs()
+    if not all_pairs: raise f'Invalid exchange name: {exchange_name}'
+    if not pair or not pair in all_pairs:
+        pair = autocomplete(
+            'Which pair?',
+            choices=all_pairs,
+            validate=lambda s: s in all_pairs
+        ).ask()
+    return pair
 
-def update_url(url):
-    from pymongo import MongoClient
-    client = MongoClient("mongodb+srv://andrew:romafade@mangocluster0.8ncwj.mongodb.net/mango?retryWrites=true&w=majority")
-    client.mango.urls.update_one({'service': 'ngrok'}, { "$set": { 'url': url } })
-    print(url)
+def select_exchange(exchange_name: str = ''):
+    if exchange_name in EXCHANGES: return exchange_name
+    return select(
+        'Which exchange would you like to use:',
+        choices=EXCHANGE_NAMES, style=style
+    ).ask().lower().replace(' ', '')
 
-######################### PLOTTING
+def select_interval(interval: str = ''):
+    if interval in INTERVALS: return interval
+    return select(
+        'Which interval would you like to use:',
+        choices=INTERVALS, style=style
+    ).ask()
 
-def trace_bar(data, name):
-    marker_colors = full(data[name].shape, nan, dtype=object)
-    marker_colors[(data[name] > data[name].shift()) & (data[name] > 0)] = "green"
-    marker_colors[(data[name] > data[name].shift()) & (data[name] < 0)] = "RGBA(255, 0, 0, .25)"
-    marker_colors[data[name] == data[name].shift()] = "grey"
-    marker_colors[(data[name] < data[name].shift()) & (data[name] > 0)] = "RGBA(0, 255, 0, .25)"
-    marker_colors[(data[name] < data[name].shift()) & (data[name] < 0)] = "red"
-    return go.Bar(y=data[name], x=data.index, name=name, marker_color=marker_colors)
+def select_strategy(strategy_name: str = ''):
+    all_strats = list(filter(lambda s: s != '__pycache__', get_strategy_options()))
+    if not all_strats:
+        print('there are no strategies.')
+        return ''
+    if not strategy_name in all_strats:
+        strategy_name = select(
+            'Which strategy?',
+            choices=all_strats
+        ).ask()
+    return strategy_name
 
-def trace_line(data, name, color):
-    return go.Scatter(y=data[name], x=data.index, mode="lines", line_shape="spline", name=name, line=dict(color=color))
+############################## OTHER UTILS
+def authenticate(exchange_name: str = ''):
+    exchange_name = select_exchange(exchange_name)
+    if exchange_name == 'cancel': return
+    while True:
+        key = password("API key:", style=style).ask()
+        secret = password("API secret:", style=style).ask()
+        if key and secret and get_exchange(exchange_name).authenticate(key, secret):
+            print(f'{exchange_name} API authentication authd!')
+            load_dotenv(ENV_PATH)
+            os.environ[f'{exchange_name.upper()}_KEY'] = key
+            os.environ[f'{exchange_name.upper()}_SECRET'] = secret
+            print(f'{exchange_name} added to Yuzu!')
+            return
+        if not confirm(
+            message='Authentication unsucessful, would you like to try again?',
+            style=style
+        ).ask(): return 
 
-def add_common_plot_traces(fig, data, trade_mode=None):
-    fig.add_trace(go.Candlestick(x=data.index, open=data.open, high=data.high, low=data.low, close=data.close, name='ADAUSD'), row=1, col=1)
-    fig.add_trace(go.Scatter(y=data.buy, x=data.index, name="buy", mode="markers", marker=dict(color="cyan", symbol="circle-open", size=10)), row=1, col=1)
-    fig.add_trace(go.Scatter(y=data.sell, x=data.index, name="sell", mode="markers", marker=dict(color="yellow", symbol="circle-open", size=10)), row=1, col=1)
-    if trade_mode in ['backtest', 'live']:
-        if trade_mode == 'backtest':
-            fig.add_trace(trace_bar(data, 'profit_diff_change'), row=2, col=1)
-            fig.add_trace(trace_line(data, 'hodl_profit', 'yellow'), row=2, col=1, secondary_y=True)
-        fig.add_trace(go.Scatter(y=data.bought, x=data.index, name="bought", mode="markers", marker=dict(color="cyan", symbol="circle", size=10)), row=1, col=1)
-        fig.add_trace(go.Scatter(y=data.sold, x=data.index, name="sold", mode="markers", marker=dict(color="yellow", symbol="circle", size=10)), row=1, col=1)
-        fig.add_trace(go.Scatter(y=data.stop_lossed, x=data.index, name="stop_lossed", mode="markers", marker=dict(color="magenta", symbol="circle", size=10)), row=1, col=1)
-        fig.add_trace(go.Scatter(y=data.stop_loss, x=data.index, name="stop_loss", mode="markers", marker=dict(color="magenta", symbol="circle-open", size=10)), row=1, col=1)
-        fig.add_trace(trace_line(data, 'trade_profit', 'green'), row=2, col=1, secondary_y=trade_mode == 'backtest')
-    fig.update_xaxes(rangeslider_visible=False, spikemode="across", spikesnap="cursor", spikedash="dot", spikecolor="grey", spikethickness=1)
-    fig.update_layout(template="plotly_dark", hovermode="x", spikedistance=-1)
-    fig.update_traces(xaxis="x")
-    return fig
+def validate_strategy(strategy_path):
+    # TODO validate_strategy should verify:
+    '''
+        - module contains strategy: Callable
+        - module contains config_range: dict
+        - config_range['min_ticks'] exists
+        - config_range['min_ticks']: List[str]
+        - c in list(filter(lambda i: i != 'min_ticks', config_range.keys)) for c in config_range['min_ticks']
+        - data: DataFrame = strategy(data: DataFrame)
+        - 'buy', 'sell' in data.columns
+    '''
+    strat_name = strategy_path.split(os.sep)[-1][:-3]
+    strat_mod, strat_func = None, None
+    strat_func = get_strategy(STRATS_PATH + os.sep + strat_name + '.py', strat_name)
+    data = strat_func(DataFrame({'open': [], 'high': [], 'low': [], 'close': [], 'volume': []}))
+    cols = data.columns.values.tolist()
+    if not ('buy' in cols and 'sell' in cols): raise 'Strategy invalid. Reference example for help.'
 
-
-######################### EXCHANGE HELPERS
-
-def keypair(exchange_name: ExchangeName, key=None, secret=None) -> Tuple[str, str]:
-    load_dotenv()
-    key_k, secret_k = f'{exchange_name.upper()}_KEY', f'{exchange_name.upper()}_SECRET'
-    if key and secret:
-        os.environ[key_k] = key
-        os.environ[secret_k] = secret
-    else:
-        try:
-            key = os.environ[key_k]
-            secret = os.environ[secret_k]
-        except KeyError:
-            print(f'Keypair not set: Either include keypair in request or set environmentals {key_k} and {secret_k}')
-    return key, secret
-
-def since(interval: str, ticks: int, last_epoch: int = -1):
-    if last_epoch == -1:
-        last_epoch = int(datetime.datetime.now(tz=reference.LocalTimezone()).timestamp())
-    return last_epoch - (int(interval[:-1]) * (3600 if interval[-1] == 'h' else 86400 if interval[-1] == 'd' else 60) * ticks)
-
-def safe_round(amount, precision):
-    return math.floor(amount * (10**precision))/(10**precision)
-
-######################### COLOR PRINT
-
-class colorprint:
-    @staticmethod
-    def red(skk): print("\033[91m {}\033[00m" .format(skk))
-    @staticmethod
-    def green(skk): print("\033[92m {}\033[00m" .format(skk))
-    @staticmethod
-    def yellow(skk): print("\033[93m {}\033[00m" .format(skk))
-    @staticmethod
-    def lightpurple(skk): print("\033[94m {}\033[00m" .format(skk))
-    @staticmethod
-    def purple(skk): print("\033[95m {}\033[00m" .format(skk))
-    @staticmethod
-    def cyan(skk): print("\033[96m {}\033[00m" .format(skk))
-    @staticmethod
-    def lightgrey(skk): print("\033[97m {}\033[00m" .format(skk))
-    @staticmethod
-    def black(skk): print("\033[98m {}\033[00m" .format(skk))
+def delete_yuzu():
+    if confirm(
+            message='Are you sure you would like to delete Yuzu?',
+            style=style
+        ).ask():
+        rmtree(ROOT_PATH)
+        print(f'deleted \033[93m{ROOT_PATH}\033[00m')
