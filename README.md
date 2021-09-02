@@ -1,0 +1,1 @@
+![Yuzu logo](./assets/yuzu-logo.png)
