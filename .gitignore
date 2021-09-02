@@ -2,3 +2,5 @@
 config.json
 *.pyc
 *.ipynb
+notes.txt
+*.egg*/

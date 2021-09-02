@@ -1,7 +1,7 @@
 from numpy import isnan
 from .types import *
 from datetime import datetime
-from .utils import colorprint
+from .utils.utils import colorprint
 
 NO_ORDER, BOUGHT, SOLD, STOP_LOSSED = 0, 1, 2, 3
 

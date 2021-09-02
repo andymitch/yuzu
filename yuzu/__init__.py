@@ -1,5 +1,5 @@
 from .api import api
-from .exchanges import binance, coinbase, kraken
+from .exchanges import binance, binanceus, coinbasepro, kraken
 from .backtest import backtest
 from .optimize import optimize
 from .trade import Trader

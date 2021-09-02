@@ -6,7 +6,7 @@ from numpy import linspace
 from pandas import to_numeric
 from time import time
 from pytz import reference
-from ..utils import since
+from ..utils.utils import since
 from ..types import *
 
 ROOT_URL = 'https://api.binance.us/api/v3/'

@@ -4,7 +4,11 @@ from yuzu import optimize as yuzu_optimize
 from shutil import copyfile
 import os, json
 from pathlib import Path
-from yuzu.utils import *
+from yuzu.utils.cli_helpers import *
+from yuzu.utils.getters import *
+from yuzu.utils.selectors import *
+from yuzu.utils.setters import *
+from yuzu.utils.utils import *
 from yuzu.types import *
 import requests
 import click
@@ -12,16 +16,9 @@ import click
 
 cli = click.Group()
 
-# TODO: remove test command
-@cli.command()
-def echo():
-    exchange = select_exchange()
-    strategy = select_strategy()
-    pair = select_pair(exchange)
-    click.echo(f'{exchange} {strategy} {pair}')
 
 @cli.command()
-@click.argument('exchange', type=click.Choice(exchanges, case_sensitive=False), required=False)
+@click.argument('exchange', type=click.Choice(EXCHANGES, case_sensitive=False), required=False)
 def auth(exchange): authenticate(exchange)
 
 @cli.command()
@@ -53,13 +50,13 @@ def upload(path):
 @click.option('-p', '--pair', required=False, type=str, help='Pair symbol to backtest on.')
 @click.option('-i', '--interval', required=False, type=str, help='Interval to backtest on.')
 @click.option('-s', '--strategy', required=False, type=str, help='Strategy to backtest with.')
-@click.option('-e', '--exchange', required=False, type=click.Choice(exchanges, case_sensitive=False), help='Exchange to pull backdata from.')
+@click.option('-e', '--exchange', required=False, type=click.Choice(EXCHANGES, case_sensitive=False), help='Exchange to pull backdata from.')
 @click.option('--plot/--no-plot', default=False, help='Plot results if possible.')
 @click.option('-c', '--config', required=False, type=str, help='Given strategy config to test (optional).')
 def backtest(pair=None, interval=None, strategy=None, exchange=None, plot=False, config=None):
-    exchange_name = select_exchange(exchange_name)
-    strategy_name = select_strategy(strategy_name)
-    symbol = select_pair(exchange_name, symbol)
+    exchange_name = select_exchange(exchange)
+    strategy_name = select_strategy(strategy)
+    symbol = select_pair(exchange_name, pair)
     interval = select_interval(interval)
     if not config:
         try: config = config or get_config(strategy_name, interval)
@@ -73,17 +70,39 @@ def backtest(pair=None, interval=None, strategy=None, exchange=None, plot=False,
 @click.option('-p', '--pair', required=False, type=str, help='Pair symbol to backtest on.')
 @click.option('-i', '--interval', required=False, type=str, help='Interval to backtest on.')
 @click.option('-s', '--strategy', required=False, type=str, help='Strategy to backtest with.')
-@click.option('-e', '--exchange', required=False, type=click.Choice(exchanges, case_sensitive=False), help='Exchange to pull backdata from.')
-@click.option('--plot/--no-plot', default=False, help='Plot results if possible.')
-def optimize(pair=None, interval=None, strategy=None, exchange=None, plot=None):
-    # TODO: get all parameters
-    # TODO: read strategy config_bounds
-    # TODO: run optimize
-    # TODO: backtest/compare top result and existing config, ask if want to replace
-    # new config is (much better / only slightly better / the same / only slightly worse / much worse) than existing config, would you like to replace it?
-    # diff = (new - old) / old
-    # [>.2, <=.2, 0, >=-.2, > -.2] 20%
-    pass
+@click.option('-e', '--exchange', required=False, type=click.Choice(EXCHANGES, case_sensitive=False), help='Exchange to pull backdata from.')
+def optimize(pair=None, interval=None, strategy=None, exchange=None):
+    strategy_name = select_strategy(strategy)
+    config_range = get_config_range(strategy_name)
+
+    exchange_name = select_exchange(exchange)
+    symbol = select_pair(exchange_name, pair)
+    interval = select_interval(interval)
+    data = get_exchange(exchange_name).get_backdata(symbol, interval, 50000)
+
+    new_config = yuzu_optimize(data, strategy_name, config_range)
+    old_config = get_config(strategy_name, interval, verbose=False)
+    if not old_config:
+        set_config(new_config, strategy_name, interval)
+        return
+
+    data = get_exchange(exchange_name).get_backdata(symbol, interval, 10000)
+    old_score = yuzu_backtest(get_strategy(strategy_name)(data, old_config), old_config, plot=False)
+    new_score = yuzu_backtest(get_strategy(strategy_name)(data, new_config), new_config, plot=False)
+    diff = (new_score - old_score) / old_score
+
+    SIG = .2
+    compare_str = \
+        'much better than'     if diff > SIG else \
+        'slightly better than' if diff > 0 else \
+        'the same as'          if diff == 0 else \
+        'slightly worse than'  if diff > -SIG else \
+        'much worse than'
+    click.echo('The newly optimized config is ' + compare_str + ' the existing config.')
+    if confirm(
+            message='Would you like to replace the existing config?',
+            style=style
+        ).ask(): set_config(new_config, strategy_name, interval)
 
 @cli.command()
 def delete(): delete_yuzu()
