@@ -1,5 +1,5 @@
 def client_app(balance: dict, plot: str) -> str:
-    balance = '<ul>' + "".join([f'<li>{k}: {v}<li>' for k,v in balance.items()]) + '</ul>'
+    balance = '<ul>' + "".join([f'<li>{k}: {v}</li>' for k,v in balance.items()]) + '</ul>'
     top = '''
         <!DOCTYPE html>
         <html lang="en">
@@ -16,7 +16,4 @@ def client_app(balance: dict, plot: str) -> str:
         </body>
         </html>
     '''
-    return top + balance + plot + bottom
-
-def page_not_found() -> str:
-    return '<h1>Oh no, this page does not exist!</h1>', 404
+    return top + balance + '<div style="background-color:#222;width:100vw;height:80vh;>'+plot+'</div>' + bottom

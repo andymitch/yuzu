@@ -1,12 +1,14 @@
-from yuzu.strategies.utils.indicators import EMA
-from yuzu.strategies.utils.utils import xup, xdn
+from ta.trend import EMAIndicator
 from ta.momentum import RSIIndicator
-from pandas import DataFrame
+from pandas import DataFrame, Series
 
+EMA = lambda close, len: EMAIndicator(close, len).ema_indicator()
+xup = lambda left, right=0: (left.shift() < (right.shift() if isinstance(right, Series) else right)) & (left > right)
+xdn = lambda left, right=0: (left.shift() > (right.shift() if isinstance(right, Series) else right)) & (left < right)
 
 min_ticks = 44
 
-def macdas_strat(
+def strategy(
     data: DataFrame,
     config: dict
 ) -> DataFrame:
@@ -49,25 +51,3 @@ config_range = {
     'rsi_lb': [0.0,70.0],
     'rsi_ub': [30.0,100.0]
 }
-
-from plotly.subplots import make_subplots
-import plotly.graph_objects as go
-from yuzu.utils import add_common_plot_traces, trace_bar, trace_line
-
-def plot(data, config, trade_mode=None):
-    fig = make_subplots(rows=3 if trade_mode is None else 4, cols=1, shared_xaxes=True, specs=[[{"secondary_y": True}]] * (3 if trade_mode is None else 4))
-
-    fig = add_common_plot_traces(fig, data, trade_mode=trade_mode)
-
-    fig.add_trace(trace_bar(data, 'buy_hist'), row=2 if trade_mode is None else 3, col=1, secondary_y=True)
-    fig.add_trace(trace_line(data, 'buy_rsi', 'purple'), row=2 if trade_mode is None else 3, col=1)
-
-    fig.add_trace(trace_bar(data, 'sell_hist'), row=3 if trade_mode is None else 4, col=1, secondary_y=True)
-    fig.add_trace(trace_line(data, 'sell_rsi', 'purple'), row=3 if trade_mode is None else 4, col=1)
-
-    fig.add_hrect(y0=0, y1=config['rsi_lb'], line_width=0, fillcolor='blue', x0=data.index[0], x1=data.index[-1], opacity=.5, row=2 if trade_mode is None else 3, col=1)
-    fig.add_hrect(y0=config['rsi_ub'], y1=100, line_width=0, fillcolor='yellow', x0=data.index[0], x1=data.index[-1], opacity=.5, row=2 if trade_mode is None else 3, col=1)
-    fig.add_hrect(y0=0, y1=config['rsi_lb'], line_width=0, fillcolor='blue', x0=data.index[0], x1=data.index[-1], opacity=.5, row=3 if trade_mode is None else 4, col=1)
-    fig.add_hrect(y0=config['rsi_ub'], y1=100, line_width=0, fillcolor='yellow', x0=data.index[0], x1=data.index[-1], opacity=.5, row=3 if trade_mode is None else 4, col=1)
-
-    return fig

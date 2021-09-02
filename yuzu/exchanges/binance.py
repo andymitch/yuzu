@@ -1,3 +1,110 @@
+import requests
+from urllib.parse import urlencode
+import hmac, hashlib, datetime, math, json
+import traceback
+from numpy import linspace
+from pandas import to_numeric
+from time import time
+from pytz import reference
+from ..utils import since
+from ..types import *
+
+get_base_url = lambda tld: f'https://api.binance.{tld}/api/v3/'
+
+def get_all_pairs(tld, symbol_s: Optional[Union[str, List[str]]] = None) -> Union[Pair, List[Pair]]:
+    try:
+        endpoint = 'exchangeInfo'
+        if symbol_s:
+            if isinstance(symbol_s, str): endpoint += ('?symbol='+symbol_s)
+            else: endpoint += ('?symbols=['+','.join(['\"'+a+'\"' for a in symbol_s])+']')
+        exchange_info = requests.get(get_base_url(tld) + endpoint).json()
+        prices = {p['symbol']: float(p['price']) for p in requests.get(get_base_url(tld) + 'ticker/price').json()}
+        pair_list = [Pair(
+            symbol=s['symbol'],
+            left=s['baseAsset'],
+            right=s['quoteAsset'],
+            left_min=float(next((f for f in s['filters'] if f['filterType'] == 'LOT_SIZE'), None)['minQty']),
+            right_min=float(next((f for f in s['filters'] if f['filterType'] == 'MIN_NOTIONAL'), None)['minNotional']),
+            left_prec=f"{float(s['filters'][2]['stepSize']):g}"[::-1].find('.'),
+            right_prec=int(s['quoteAssetPrecision']),
+            curr_price=prices[s['symbol']]
+        ) for s in exchange_info['symbols']]
+        if symbol_s and isinstance(symbol_s, str):
+            return pair_list[0]
+        return pair_list
+    except:
+        print('** FAILED TO GET ALL PAIRS **')
+        print(traceback.print_exc())
+
+def get_pair(symbol: str, tld: str):
+    try: return get_all_pairs(tld, symbol)
+    except: print(symbol, 'is not a valid pair.')
+
+def get_backdata(pair: Pair, interval: str, ticks: int, tld: str) -> DataFrame:
+    klines = []
+    max_tick_request = 1000
+    epoch_to_iso = lambda t: datetime.datetime.fromtimestamp(float(t / 1000),tz=reference.LocalTimezone()).strftime('%Y-%m-%d %H:%M:%S')
+    cols = ["time", "open", "high", "low", "close", "volume", "close_time", "qav", "trade_count", "taker_bav", "taker_qav", "ignore"]
+    drop_cols = ["close_time", "qav", "trade_count", "taker_bav", "taker_qav", "ignore"]
+    num_cols = ["open", "high", "low", "close", "volume"]
+    data = DataFrame(columns=cols)
+    if ticks > max_tick_request:
+        curr_epoch = int(datetime.datetime.now(tz=reference.LocalTimezone()).timestamp())
+        since_epoch = since(interval, ticks, curr_epoch)
+        epoch_count = math.ceil(ticks/max_tick_request) + 1
+        epochs = linspace(since_epoch*1000, curr_epoch*1000, epoch_count, dtype=int)[:-1]
+        for epoch in epochs:
+            params = {'symbol': pair.symbol, 'interval': interval, 'startTime': epoch, 'limit': max_tick_request}
+            klines = json.loads(requests.get(get_base_url(tld) + 'klines', params=params).text)
+            temp = DataFrame(klines, columns=cols)
+            temp['time'] = temp['time'].apply(epoch_to_iso)
+            temp = temp.set_index('time')
+            temp = temp.drop_duplicates()
+            data = data.append(temp.loc[temp.index.difference(data.index),:])
+        data = data.drop(drop_cols, axis=1)
+        data[num_cols] = data[num_cols].apply(to_numeric, axis=1)
+    else:
+        params = {'symbol': pair.symbol, 'interval': interval, 'limit': ticks}
+        klines = json.loads(requests.get(get_base_url(tld) + 'klines', params=params).text)
+        data = DataFrame(klines, columns=cols).drop(["close_time", "qav", "trade_count", "taker_bav", "taker_qav", "ignore"], axis=1)
+        data[["open", "high", "low", "close", "volume"]] = data[["open", "high", "low", "close", "volume"]].apply(to_numeric, axis=1)
+        data["time"] = data["time"].apply(epoch_to_iso)
+        data = data.set_index("time")
+    return data.loc[~(data.index.duplicated(False))].sort_index()
+
+def __authenticated_request(http_method, endpoint, key, secret, tld, params={}):
+    def dispatch_request(http_method):
+        session = requests.Session()
+        session.headers.update({
+            'Content-Type': 'application/json;charset=utf-8',
+            'X-MBX-APIKEY': key
+        })
+        return {
+            'GET': session.get,
+            'DELETE': session.delete,
+            'PUT': session.put,
+            'POST': session.post,
+        }.get(http_method, 'GET')
+    query_string = urlencode(params, True)
+    query_string = query_string + ('&' if query_string else '') + 'timestamp=' + str(int(1000*time()))
+    hashed = hmac.new(secret.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256).hexdigest()
+    url = get_base_url(tld) + endpoint + '?' + query_string + '&signature=' + hashed
+    params = {'url': url, 'params': {}}
+    return dispatch_request(http_method)(**params)
+
+def get_available_pairs(tld: str):
+    exchange_info = requests.get(get_base_url(tld) + 'exchangeInfo').json()
+    prices = {p['symbol']: float(p['price']) for p in requests.get(get_base_url(tld) + 'ticker/price').json()}
+    pair_list = [s['symbol'] for s in exchange_info['symbols']]
+    return pair_list
+
+def authenticate(key, secret, tld):
+    return __authenticated_request('GET', 'account', key, secret, tld).status_code == 200
+
+
+
+
+'''
 from websocket import WebSocketApp
 from urllib.parse import urlencode
 from flask import Flask, request
@@ -10,6 +117,7 @@ import requests
 import hashlib
 import hmac
 import json
+import sys
 
 from yaza.client import client_app, page_not_found
 from yaza.optimize import optimize, backtest
@@ -374,7 +482,8 @@ class Exchange:
         def page_not_found(error):
             return page_not_found()
 
-        app.run(host='0.0.0.0', port=5000)
+        if sys.platform in ['linux','linux2']: app.run(host='0.0.0.0', port=5000)
+        elif sys.platform == 'darwin': app.run(port=8000)
 
     api_thread = None
     # start websocket, api, and live trading
@@ -402,3 +511,5 @@ class Exchange:
             if selloff and order['side']=='SELL':
                 pair = get_pair(order['symbol'])
                 self.create_order(pair.symbol, 'SELL', 'MARKET', self.get_curr_balance()[pair.left])
+
+'''

@@ -1,86 +1,59 @@
-from datetime import datetime
+from pandas import DataFrame
 from numpy import isnan
+from .plot import plot as _plot
 
-def colorprint(i, col, val, win=False):
-    time_str = "%b %d, %Y [%H:%M]"
-    if col == "buy":
-        print(f'\033[96m{datetime.strptime(i, "%Y-%m-%dT%H:%M:%S").strftime(time_str)} {col}       @ {val}\033[00m')
-    elif col == "sell":
-        if win:
-            print(f'\033[42m{datetime.strptime(i, "%Y-%m-%dT%H:%M:%S").strftime(time_str)} {col}      @ {val}\033[00m')
-        else:
-            print(f'\033[41m{datetime.strptime(i, "%Y-%m-%dT%H:%M:%S").strftime(time_str)} {col}      @ {val}\033[00m')
-    elif col == "stop_loss":
-        print(f'\033[91m{datetime.strptime(i, "%Y-%m-%dT%H:%M:%S").strftime(time_str)} {col} @ {val}\033[00m')
 
-def backtest(data, stop_loss=.35, stop_limit_buy=.1, stop_limit_sell=.1, trading_fee=0.001, verbose=False):
-    starting_amount = 100.0
-    data["trade_profit"] = [0] * len(data)
-    data["hodl_profit"] = [0] * len(data)
-    data["stop_loss"] = [None] * len(data)
-    wallet = {"base": starting_amount / 2, "asset": starting_amount / (data.loc[data.index[0], "close"] * 2)}
-    hodl_wallet = wallet.copy()
-    data["bought"] = [None] * len(data)
-    data["sold"] = [None] * len(data)
-    data["stop_lossed"] = [None] * len(data)
-    stop_loss_value = None
-    tally = []
+def buy(data, i, row, stop_buy, stop_limit_buy, stop_loss, stop_limit_loss, wallet):
+    if stop_buy and stop_buy < row['high']:
+        wallet['left'] = wallet['right'] * (1-wallet['fee']) / stop_buy
+        wallet['right'] = 0.0
+        data.at[i, 'bought'] = stop_buy
+        stop_loss = stop_buy - (stop_buy * stop_limit_loss)
+        stop_buy = None
+        return data, stop_buy, stop_loss, True, wallet
+    if not isnan(row['buy']) and (stop_buy is None or row['close'] + (row['close'] * stop_limit_buy) < stop_buy):
+        stop_buy = row['close'] + (row['close'] * stop_limit_buy)
+    return data, stop_buy, stop_loss, False, wallet
+
+def sell(data, i, row, stop_sell, stop_limit_sell, stop_loss, wallet):
+    if stop_sell and stop_sell > row['low']:
+        wallet['right'] = wallet['left'] * (1-wallet['fee']) * stop_sell
+        wallet['left'] = 0.0
+        data.at[i, 'sold'] = stop_sell
+        stop_sell = None
+        stop_loss = None
+        return data, stop_sell, stop_loss, False, wallet
+    elif stop_loss and stop_loss > row['low']:
+        wallet['right'] = wallet['left'] * (1-wallet['fee']) * stop_loss
+        wallet['left'] = 0.0
+        data.at[i, 'stop_lossed'] = stop_loss
+        stop_sell = None
+        stop_loss = None
+        return data, stop_sell, stop_loss, False, wallet
+    if not isnan(row['sell']) and (stop_sell is None or row['close'] + (row['close'] * stop_limit_sell) > stop_sell):
+        stop_sell = row['close'] - (row['close'] * stop_limit_sell)
+    return data, stop_sell, stop_loss, True, wallet
+
+def backtest(data: DataFrame, config, fee: float = .001, plot: bool = False):
+    stop_limit_buy: float = config['stop_limit_buy']
+    stop_limit_sell: float = config['stop_limit_sell']
+    stop_limit_loss: float = config['stop_limit_loss']
+    wallet = {'left': 0.0, 'right': 100.0, 'fee': fee}
+    stop_buy, stop_sell, stop_loss = None, None, None
+    data[['bought', 'sold', 'stop_lossed', 'balance']] = [None, None, None, None]
+    open_trade = False
+
     for i, row in data.iterrows():
-        if not isnan(row["buy"]) and wallet["base"] > 0:
-            tally.append({"buy": data.loc[i, "close"], 'win': None})
-            data.loc[i, "bought"] = data.loc[i, "close"]
-            fee = wallet["base"] * trading_fee
-            wallet["asset"] += (wallet["base"] - fee) / row["buy"]
-            wallet["base"] = 0.0
-            stop_loss_value = row["buy"] * (1 - stop_loss)
-            if verbose:
-                colorprint(i, "buy", row["buy"])
-        elif not stop_loss_value is None and stop_loss_value > row["low"]:
-            tally[-1]["sell"] = stop_loss_value
-            tally[-1]["win"] = bool(False)
-            data.loc[i, "stop_lossed"] = stop_loss_value
-            fee = wallet["asset"] * trading_fee
-            wallet["base"] += (wallet["asset"] - fee) * stop_loss_value
-            wallet["asset"] = 0.0
-            data.loc[i, "stop_loss"] = stop_loss_value
-            if verbose:
-                colorprint(i, "stop_loss", stop_loss_value)
-            stop_loss_value = None
-        elif not isnan(row["sell"]) and wallet["asset"] > 0:
-            if wallet["base"] == 0:
-                tally[-1]["sell"] = data.loc[i, "close"]
-                tally[-1]["win"] = bool(tally[-1]["sell"] > tally[-1]["buy"])
-            else:
-                tally.append({"sell": data.loc[i, "close"], "win": None})
-            data.loc[i, "sold"] = data.loc[i, "close"]
-            fee = wallet["asset"] * trading_fee
-            wallet["base"] += (wallet["asset"] - fee) * row["sell"]
-            wallet["asset"] = 0.0
-            stop_loss_value = None
-            if verbose:
-                colorprint(i, "sell", row["sell"], tally[-1]["win"])
+        if open_trade:
+            data, stop_sell, stop_loss, open_trade, wallet = sell(data, i, row, stop_sell, stop_limit_sell, stop_loss, wallet)
+        else:
+            data, stop_buy, stop_loss, open_trade, wallet = buy(data, i, row, stop_buy, stop_limit_buy, stop_loss, stop_limit_loss, wallet)
+        data.at[i, 'balance'] = wallet['right'] + (wallet['left'] * row['close'])
 
-        if not isnan(row["close"]):
-            data.loc[i, "trade_profit"] = (wallet["base"] + (wallet["asset"] * row["close"])) - starting_amount
-            data.loc[i, "hodl_profit"] = (hodl_wallet["base"] + (hodl_wallet["asset"] * row["close"])) - starting_amount
+    data['balance'] -= 100.0
 
-    data["profit_diff_change"] = (data["trade_profit"] - data["hodl_profit"]) - (data["trade_profit"].shift() - data["hodl_profit"].shift())
-    score = data.profit_diff_change.sum()
-    if verbose:
-        print("score:", score)
-    win_rate = None
-    try:
-        win_rate = len(list(filter(lambda t: t['win'], tally))) / len(list(filter(lambda t: not t['win'] is None, tally)))
-    except: pass
-    for t in tally:
-        t['diff'] = t['sell'] - t['buy'] if 'sell' in t.keys() and 'buy' in t.keys() else None
-    sorted_tally = list(sorted(list(filter(lambda t: not t['diff'] is None, tally)), key=lambda t: t['diff']))
-    best_trade, worst_trade = [sorted_tally[-1], sorted_tally[0]] if len(sorted_tally) > 0 else [None, None]
-    results = {
-        'score': score,
-        'win_rate': win_rate,
-        'trade_freq': f'{len(tally)}/{len(data)}',
-        'best_trade': best_trade,
-        'worst_trade': worst_trade
-    }
-    return data
+    if plot:
+        try: _plot(data)
+        except: pass
+
+    return data['balance'].iat[-1]

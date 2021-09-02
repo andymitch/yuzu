@@ -2,16 +2,12 @@ from typing import *
 
 from pandas import DataFrame
 
-
-class Row:
+class Row():
     open: float
     high: float
     low: float
     close: float
     volume: float
-
-OrderType = str
-ExchangeName = str
 
 class Pair:
     def __init__(self,
@@ -32,4 +28,3 @@ class Pair:
         self.left_prec = left_prec
         self.right_prec = right_prec
         self.curr_price = curr_price
-        
