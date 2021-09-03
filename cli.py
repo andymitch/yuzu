@@ -22,7 +22,7 @@ cli = click.Group()
 def auth(exchange): authenticate(exchange)
 
 @cli.command()
-@click.argument('path', type=click.Path(exists=True))
+@click.argument('path', type=str)
 def save(path):
     if not path[-3:] == '.py': raise 'Strategy must be written in Python.'
     file_name = path.split('/')[-1] if path[:4] == 'http' else path.split(os.sep)[-1]
