@@ -1,0 +1,11 @@
+questionary
+tqdm
+p_tqdm
+pandas
+numpy
+click
+plotly
+typing
+requests
+pytz
+functools
