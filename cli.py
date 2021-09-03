@@ -35,10 +35,10 @@ def save(path):
         else: return
     strat_name = file_name[:-3]
     if path[:4] == 'http':
+        res = requests.get(path)
+        assert res.status_code == 200, 'bad URL'
+        py_str = res.text
         try:
-            res = requests.get(path)
-            assert res.status_code == 200, 'bad URL'
-            py_str = res.text
             py_file = open(new_path, 'w')
             py_file.write(py_str)
             py_file.close()
