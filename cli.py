@@ -37,7 +37,7 @@ def save(path):
     if path[:4] == 'http':
         try:
             res = requests.get(path)
-            assert res.status_code != 200, 'bad URL'
+            assert res.status_code == 200, 'bad URL'
             py_str = res.text
             py_file = open(new_path, 'w')
             py_file.write(py_str)
