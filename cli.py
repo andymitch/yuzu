@@ -53,18 +53,18 @@ def upload(path):
 @click.option('-e', '--exchange', required=False, type=click.Choice(EXCHANGES, case_sensitive=False), help='Exchange to pull backdata from.')
 @click.option('--plot/--no-plot', default=False, help='Plot results if possible.')
 @click.option('-c', '--config', required=False, type=str, help='Given strategy config to test (optional).')
-def backtest(pair=None, interval=None, strategy=None, exchange=None, plot=False, config=None):
+def backtest(pair, interval, strategy, exchange, plot, config):
     exchange_name = select_exchange(exchange)
     strategy_name = select_strategy(strategy)
     symbol = select_pair(exchange_name, pair)
     interval = select_interval(interval)
     if not config:
         try: config = config or get_config(strategy_name, interval)
-        except: pass
+        except: click.echo('Couldn\'t find config.')
         if not config: return
     data = get_exchange(exchange_name).get_backdata(symbol, interval, 1000)
     data = get_strategy(strategy_name)(data, config)
-    if not plot: click.echo(yuzu_backtest(data, config, plot=plot))
+    click.echo(yuzu_backtest(data, config, plot=plot))
 
 @cli.command()
 @click.option('-p', '--pair', required=False, type=str, help='Pair symbol to backtest on.')
@@ -89,7 +89,7 @@ def optimize(pair=None, interval=None, strategy=None, exchange=None):
     data = get_exchange(exchange_name).get_backdata(symbol, interval, 1000)
     old_score = yuzu_backtest(get_strategy(strategy_name)(data, old_config), old_config, plot=False)
     new_score = yuzu_backtest(get_strategy(strategy_name)(data, new_config), new_config, plot=False)
-    diff = (new_score - old_score) / old_score
+    diff = (new_score - old_score) / abs(old_score)
 
     SIG = .2
     compare_str = \

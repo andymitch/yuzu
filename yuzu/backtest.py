@@ -53,7 +53,7 @@ def backtest(data: DataFrame, config, fee: float = .001, plot: bool = False):
     data['balance'] -= 100.0
 
     if plot:
-        try: _plot(data)
-        except: pass
+        try: _plot(data).show()
+        except: print('Unable to plot.')
 
     return data['balance'].iat[-1]
