@@ -23,7 +23,7 @@ def auth(exchange): authenticate(exchange)
 
 @cli.command()
 @click.argument('path', type=click.Path(exists=True))
-def upload(path):
+def save(path):
     if not path[-3:] == '.py': raise 'Strategy must be written in Python.'
     file_name = path.split('/')[-1] if path[:4] == 'http' else path.split(os.sep)[-1]
     new_path = STRATS_PATH + os.sep + file_name
@@ -44,7 +44,7 @@ def upload(path):
     else:
         try: copyfile(path, new_path)
         except: raise 'Unable to copy strategy.'
-    click.echo('Strategy upload successful!')
+    click.echo('Strategy import successful!')
 
 @cli.command()
 @click.option('-p', '--pair', required=False, type=str, help='Pair symbol to backtest on.')
