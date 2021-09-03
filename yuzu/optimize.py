@@ -31,7 +31,7 @@ def mutate(subpop, config_range, max_mut_diff):
         return new_val
     return [{'fitness': None, 'config': {k: mut_val(k,v) for k,v in p['config'].items()}} for p in subpop]
 
-def optimize(data, strategy_name, config_range, pop_size=10000, n_iter=1000, max_mut_diff=.2, max_reps=-1):
+def optimize(data, strategy_name, config_range, pop_size=1000, n_iter=100, max_mut_diff=.2, max_reps=-1):
     min_ticks_options = config_range.pop('min_ticks')
     ticks = len(data)
     reps, best = 0, None

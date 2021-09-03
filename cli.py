@@ -78,7 +78,7 @@ def optimize(pair=None, interval=None, strategy=None, exchange=None):
     exchange_name = select_exchange(exchange)
     symbol = select_pair(exchange_name, pair)
     interval = select_interval(interval)
-    data = get_exchange(exchange_name).get_backdata(symbol, interval, 50000)
+    data = get_exchange(exchange_name).get_backdata(symbol, interval, 5000)
 
     new_config = yuzu_optimize(data, strategy_name, config_range)
     old_config = get_config(strategy_name, interval, verbose=False)
@@ -86,7 +86,7 @@ def optimize(pair=None, interval=None, strategy=None, exchange=None):
         set_config(new_config, strategy_name, interval)
         return
 
-    data = get_exchange(exchange_name).get_backdata(symbol, interval, 10000)
+    data = get_exchange(exchange_name).get_backdata(symbol, interval, 1000)
     old_score = yuzu_backtest(get_strategy(strategy_name)(data, old_config), old_config, plot=False)
     new_score = yuzu_backtest(get_strategy(strategy_name)(data, new_config), new_config, plot=False)
     diff = (new_score - old_score) / old_score
