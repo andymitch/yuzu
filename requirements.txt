@@ -10,3 +10,4 @@ requests
 pytz
 functools
 python-dotenv
+ta
