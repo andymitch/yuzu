@@ -9,3 +9,4 @@ typing
 requests
 pytz
 functools
+python-dotenv

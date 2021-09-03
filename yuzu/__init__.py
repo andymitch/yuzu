@@ -4,4 +4,4 @@ from .backtest import backtest
 from .optimize import optimize
 from .trade import Trader
 from .plot import plot
-from .paperwallet import PaperWallet
+from .PaperWallet import PaperWallet

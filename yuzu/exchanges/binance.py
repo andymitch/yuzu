@@ -98,8 +98,8 @@ def get_available_pairs(tld: str):
     pair_list = [s['symbol'] for s in exchange_info['symbols']]
     return pair_list
 
-def authenticate(key, secret, tld):
-    return __authenticated_request('GET', 'account', key, secret, tld).status_code == 200
+def authenticate(key, secret):
+    return __authenticated_request('GET', 'account', key, secret).status_code == 200
 
 
 
