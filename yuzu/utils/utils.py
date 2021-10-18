@@ -1,6 +1,9 @@
+from inspect import signature
 from questionary import Style
 from pytz import reference
 import math, os, datetime
+from typing import Callable
+from pandas import DataFrame
 
 
 ############################## CONSTANTS
@@ -53,3 +56,33 @@ class colorprint:
     def lightgrey(skk): print("\033[97m {}\033[00m" .format(skk))
     @staticmethod
     def black(skk): print("\033[98m {}\033[00m" .format(skk))
+
+def validate_strategy(strategy_module):
+    sig, params, ret_type = None, None, None
+    try:
+        sig = signature(strategy_module.strategy)
+        params = sig.parameters
+        ret_type = sig.return_annotation
+    except: raise AttributeError(f"{strategy_module} has not attribute 'strategy'")
+    assert type(params[0]) is DataFrame, "First strategy parameter must be of type <class 'pandas.core.frame.DataFrame'>."
+    assert type(params[1]) is dict, "Second strategy parameter must be of type <class 'dict'>."
+    assert ret_type is DataFrame, "Strategy return type must be of type <class 'pandas.core.frame.DataFrame'>."
+
+    config_range = None
+    try:
+        config_range: dict = strategy_module.config_range
+    except: raise AttributeError(f"{strategy_module} has not attribute 'config_range'")
+    assert type(config_range) is dict, "Strategy config_range must be of type <class 'dict'>."
+    for k in ['min_ticks', 'stop_limit_buy', ', stop_limit_sell', 'stop_limit_loss']:
+        assert k in config_range, f"'{k}' must be included in strategy config_range."
+        t, ts = (list, "<class 'list'>") if k=='min_ticks' else (float, "<class 'float'>")
+        assert type(config_range[k]) is t, f"'{k}' must be of type {ts}."
+    for m in config_range['min_ticks']:
+        assert m in config_range.keys(), f"'{m}'' must be included in strategy config_range if to be considered for min_ticks key."
+
+    config = None # TODO: create random config given config_range
+
+    df = DataFrame({'open': [], 'high': [], 'low': [], 'close': [], 'volume': []})
+    df = strategy_module.strategy(df, config)
+    assert 'buy' in df.columns, "Buy column must exist in strategy's returned DataFrame."
+    assert 'sell' in df.columns, "Sell column must exist in strategy's returned DataFrame."

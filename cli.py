@@ -9,7 +9,7 @@ from yuzu.utils.getters import *
 from yuzu.utils.selectors import *
 from yuzu.utils.setters import *
 from yuzu.utils.utils import *
-from yuzu.types import *
+from yuzu.utils.types import *
 import requests
 import click
 
@@ -73,7 +73,8 @@ def backtest(pair, interval, strategy, exchange, plot, config):
 @click.option('-i', '--interval', required=False, type=str, help='Interval to backtest on.')
 @click.option('-s', '--strategy', required=False, type=str, help='Strategy to backtest with.')
 @click.option('-e', '--exchange', required=False, type=click.Choice(EXCHANGES, case_sensitive=False), help='Exchange to pull backdata from.')
-def optimize(pair=None, interval=None, strategy=None, exchange=None):
+@click.option('--truncate/--no-truncate', default=False, help='Truncate data to optimize performance.')
+def optimize(pair, interval, strategy, exchange, truncate):
     strategy_name = select_strategy(strategy)
     config_range = get_config_range(strategy_name)
 
@@ -82,17 +83,19 @@ def optimize(pair=None, interval=None, strategy=None, exchange=None):
     interval = select_interval(interval)
     data = get_exchange(exchange_name).get_backdata(symbol, interval, 5000)
 
-    new_config = yuzu_optimize(data, strategy_name, config_range)
+    new_config = yuzu_optimize(data, strategy_name, config_range, truncate=truncate)
+    click.echo(new_config)
     old_config = get_config(strategy_name, interval, verbose=False)
     if not old_config:
-        set_config(new_config, strategy_name, interval)
+        set_config(new_config, strategy_name, interval, verbose=False)
         return
 
     data = get_exchange(exchange_name).get_backdata(symbol, interval, 1000)
     old_score = yuzu_backtest(get_strategy(strategy_name)(data, old_config), old_config, plot=False)
     new_score = yuzu_backtest(get_strategy(strategy_name)(data, new_config), new_config, plot=False)
-    diff = (new_score - old_score) / abs(old_score)
-
+    click.echo(f'{old_score}, {new_score}')
+    diff = (new_score - old_score) / abs(old_score) if old_score != 0 else 1
+    click.echo(diff)
     SIG = .2
     compare_str = \
         'much better than'     if diff > SIG else \
@@ -104,7 +107,7 @@ def optimize(pair=None, interval=None, strategy=None, exchange=None):
     if confirm(
             message='Would you like to replace the existing config?',
             style=style
-        ).ask(): set_config(new_config, strategy_name, interval)
+        ).ask(): set_config(new_config, strategy_name, interval, verbose=False)
 
 @cli.command()
 def delete(): delete_yuzu()

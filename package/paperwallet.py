@@ -1,7 +1,7 @@
 from numpy import isnan
-from .utils.types import *
+from .types import *
 from datetime import datetime
-from .utils.utils import colorprint
+from .utils import colorprint
 
 NO_ORDER, BOUGHT, SOLD, STOP_LOSSED = 0, 1, 2, 3
 
@@ -58,7 +58,7 @@ class PaperWallet:
                 self.open_trade[symbol] = False
                 return data, BOUGHT
             if self.debug: print(symbol, '[paper buy] stop limit buy not triggered:', self.stop_buy[symbol], '>', data['high'].iat[-1], '|| is None')
-            if not isnan(data['buy'].iat[-1]): # TODO: check this first
+            if not isnan(data['buy'].iat[-1]):
                 new_stop_buy = data['close'].iat[-1] + (data['close'].iat[-1] * self.stop_limit_buy)
                 if self.debug: print(symbol, '[paper buy] checking to update stop_buy from ', self.stop_buy[symbol], 'to', new_stop_buy)
                 if self.stop_buy[symbol] is None or new_stop_buy < self.stop_buy[symbol]:
@@ -114,8 +114,8 @@ class PaperWallet:
         data, sold = self.sell(data, left, right)
         if self.verbose:
             time_str = "%b %d, %Y [%H:%M]"
-            if bought == BOUGHT:     colorprint.cyan(f'{datetime.strptime(data.index[-1], "%Y-%m-%d %H:%M:%S").strftime(time_str)}       buy {left} @ {data["close"].iat[-1]} {right}')
-            elif sold == SOLD:     colorprint.yellow(f'{datetime.strptime(data.index[-1], "%Y-%m-%d %H:%M:%S").strftime(time_str)}      sell {left} @ {data["close"].iat[-1]} {right}')
+            if bought == BOUGHT:      colorprint.cyan(f'{datetime.strptime(data.index[-1], "%Y-%m-%d %H:%M:%S").strftime(time_str)}       buy {left} @ {data["close"].iat[-1]} {right}')
+            elif sold == SOLD:        colorprint.yellow(f'{datetime.strptime(data.index[-1], "%Y-%m-%d %H:%M:%S").strftime(time_str)}      sell {left} @ {data["close"].iat[-1]} {right}')
             elif sold == STOP_LOSSED: colorprint.red(f'{datetime.strptime(data.index[-1], "%Y-%m-%d %H:%M:%S").strftime(time_str)} stop loss {left} @ {data["close"].iat[-1]} {right}')
         return data
 

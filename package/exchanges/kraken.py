@@ -1,16 +1,27 @@
-import urllib.parse, hashlib, hmac, base64, time
-from yuzu.Websocket import CreateWebsocket, Websocket
-from yuzu.utils import keypair, since, safe_round
-from yuzu.utils.types import *
-from yuzu.exchanges import Exchange
-from pandas import DataFrame, read_csv
-from pytz import reference
+from pandas import DataFrame
 import numpy as np
 import requests
 import datetime
+from pytz import reference
+import urllib
+import time
+import hmac
+import hashlib
+import base64
+from ..utils import since, safe_round
+
+
+def get_websocket(pair, interval, on_message):
+    send_msg = {
+        "event": "subscribe",
+        "pair": [pair],
+        "subscription": {"name": "ohlc", "interval": int(interval)}
+    }
+    uri = 'wss://ws.kraken.com/'
+    pass # TODO: get_websocket
 
 # interval: str -> minute_based_interval: int
-def __kraken_interval(interval: str) -> int:
+def kraken_interval(interval: str) -> int:
     value, base = interval[:-1], interval[-1]
     return value * (60 if base == 'h' else 1440 if base == 'd' else 1)
 
@@ -24,7 +35,7 @@ def get_backdata(pair: str, interval: str, ticks: int = 1000) -> DataFrame:
     data["time"] = data["time"].apply(lambda t: datetime.datetime.fromtimestamp(t,tz=reference.LocalTimezone()).strftime('%Y-%m-%dT%H:%M:%S'))
     return data.set_index("time").sort_index()
 
-class Kraken:
+class KrakenClient:
 
     TRADING_FEE = .0026
 
@@ -57,15 +68,6 @@ class Kraken:
             raw = {'open': float(raw[2]), 'high': float(raw[3]), 'low': float(raw[4]), 'close': float(raw[5]), 'volume': float(raw[7])}
             return time, raw
         return None, None
-
-    # create Kraken websocket connection
-    def get_websocket(self, data: DataFrame, pair: str, interval: str, on_tick: Callable) -> Websocket:
-        send_msg = {
-            "event": "subscribe",
-            "pair": [pair],
-            "subscription": {"name": "ohlc", "interval": int(interval)}
-        }
-        return CreateWebsocket(data, 'wss://ws.kraken.com/', pair, __kraken_interval(interval), self.__condition_tick, on_tick, send_msg)
 
     def get_tradable_pairs(self) -> DataFrame:
         tradable_pairs = requests.get('https://api.kraken.com/0/public/AssetPairs').json()['result']
@@ -148,3 +150,5 @@ class Kraken:
             self.__authenticated_request('/0/private/CancelAll')
         else:
             self.__authenticated_request('/0/private/CancelOrder', params={'txid': order_id})
+
+# TODO: take everything out of class

@@ -7,7 +7,7 @@ from pandas import to_numeric
 from time import time
 from pytz import reference
 from ..utils.utils import since
-from ..types import *
+from ..utils.types import *
 
 ROOT_URL = 'https://api.binance.us/api/v3/'
 
@@ -70,6 +70,7 @@ def get_backdata(symbol: str, interval: str, ticks: int) -> DataFrame:
         data[["open", "high", "low", "close", "volume"]] = data[["open", "high", "low", "close", "volume"]].apply(to_numeric, axis=1)
         data["time"] = data["time"].apply(epoch_to_iso)
         data = data.set_index("time")
+    if 'time' in data.columns: data = data.drop('time', axis=1)
     return data.loc[~(data.index.duplicated(False))].sort_index()
 
 def __authenticated_request(http_method, endpoint, key, secret, params={}):
@@ -98,10 +99,18 @@ def get_available_pairs():
     pair_list = [s['symbol'] for s in exchange_info['symbols']]
     return pair_list
 
-def authenticate(key, secret):
+def authenticate(key: str, secret: str) -> bool:
     return __authenticated_request('GET', 'account', key, secret).status_code == 200
 
+# TODO: create_order
 
+# TODO: get_orders
+
+# TODO: cancel_order
+
+# TODO: buy
+
+# TODO: sell
 
 
 '''
@@ -123,7 +132,7 @@ from yaza.client import client_app, page_not_found
 from yaza.optimize import optimize, backtest
 from yaza.paperwallet import PaperWallet
 from yaza.plot import plot
-from yaza.types import *
+from yaza.utils.types import *
 from yaza.utils import *
 
 

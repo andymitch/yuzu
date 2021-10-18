@@ -1,4 +1,4 @@
-from yuzu.types import Tuple
+from yuzu.utils.types import Tuple
 from dotenv import load_dotenv
 from threading import Thread
 import datetime

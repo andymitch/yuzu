@@ -7,7 +7,7 @@ from pandas import to_numeric
 from time import time
 from pytz import reference
 from ..utils.utils import since
-from ..types import *
+from ..utils.types import *
 
 ROOT_URL = 'https://api.binance.com/api/v3/'
 
@@ -42,19 +42,19 @@ def get_pair(symbol: str):
 
 def get_backdata(symbol: str, interval: str, ticks: int) -> DataFrame:
     klines = []
-    max_tick_request = 1000
+    MAX_TICK_REQUEST = 1000
     epoch_to_iso = lambda t: datetime.datetime.fromtimestamp(float(t / 1000),tz=reference.LocalTimezone()).strftime('%Y-%m-%d %H:%M:%S')
     cols = ["time", "open", "high", "low", "close", "volume", "close_time", "qav", "trade_count", "taker_bav", "taker_qav", "ignore"]
     drop_cols = ["close_time", "qav", "trade_count", "taker_bav", "taker_qav", "ignore"]
     num_cols = ["open", "high", "low", "close", "volume"]
     data = DataFrame(columns=cols)
-    if ticks > max_tick_request:
+    if ticks > MAX_TICK_REQUEST:
         curr_epoch = int(datetime.datetime.now(tz=reference.LocalTimezone()).timestamp())
         since_epoch = since(interval, ticks, curr_epoch)
-        epoch_count = math.ceil(ticks/max_tick_request) + 1
+        epoch_count = math.ceil(ticks/MAX_TICK_REQUEST) + 1
         epochs = linspace(since_epoch*1000, curr_epoch*1000, epoch_count, dtype=int)[:-1]
         for epoch in epochs:
-            params = {'symbol': symbol, 'interval': interval, 'startTime': epoch, 'limit': max_tick_request}
+            params = {'symbol': symbol, 'interval': interval, 'startTime': epoch, 'limit': MAX_TICK_REQUEST}
             klines = json.loads(requests.get(ROOT_URL + 'klines', params=params).text)
             temp = DataFrame(klines, columns=cols)
             temp['time'] = temp['time'].apply(epoch_to_iso)
@@ -70,6 +70,7 @@ def get_backdata(symbol: str, interval: str, ticks: int) -> DataFrame:
         data[["open", "high", "low", "close", "volume"]] = data[["open", "high", "low", "close", "volume"]].apply(to_numeric, axis=1)
         data["time"] = data["time"].apply(epoch_to_iso)
         data = data.set_index("time")
+    if 'time' in data.columns: data = data.drop('time', axis=1)
     return data.loc[~(data.index.duplicated(False))].sort_index()
 
 def __authenticated_request(http_method, endpoint, key, secret, params={}):
@@ -98,7 +99,7 @@ def get_available_pairs(tld: str):
     pair_list = [s['symbol'] for s in exchange_info['symbols']]
     return pair_list
 
-def authenticate(key, secret):
+def authenticate(key: str, secret: str) -> bool:
     return __authenticated_request('GET', 'account', key, secret).status_code == 200
 
 
@@ -123,8 +124,8 @@ from yaza.client import client_app, page_not_found
 from yaza.optimize import optimize, backtest
 from yaza.paperwallet import PaperWallet
 from yaza.plot import plot
-from yaza.types import *
-from yaza.utils import *
+from yaza.utils.types import *
+from yaza.utils.utils import *
 
 
 BASE_URL = 'https://api.binance.us/api/v3/'
